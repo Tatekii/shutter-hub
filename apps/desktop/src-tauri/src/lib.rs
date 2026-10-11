@@ -4,6 +4,8 @@ mod indexer;
 mod metadata;
 mod models;
 mod thumbs;
+mod volumes;
+mod xmp;
 
 use std::path::PathBuf;
 use tauri::Manager;
@@ -18,6 +20,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let cache_dir = app.path().app_cache_dir()?.join("thumbs");
             std::fs::create_dir_all(&cache_dir)?;
@@ -35,8 +38,29 @@ pub fn run() {
             commands::rescan_folder,
             commands::list_folders,
             commands::list_photos,
+            commands::get_photo,
             commands::get_stats,
             commands::remove_folder,
+            commands::set_rating,
+            commands::set_color_label,
+            commands::set_flag,
+            commands::list_facets,
+            commands::list_albums,
+            commands::create_album,
+            commands::delete_album,
+            commands::add_photos_to_album,
+            commands::remove_photos_from_album,
+            commands::list_tags,
+            commands::add_tags,
+            commands::remove_tag_from_photos,
+            commands::delete_tag,
+            commands::compute_hashes,
+            commands::list_dupes,
+            commands::list_similar,
+            volumes::list_volumes,
+            volumes::browse_volume,
+            volumes::ingest_files,
+            volumes::eject_volume,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
