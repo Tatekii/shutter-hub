@@ -1,0 +1,16 @@
+{
+  "name": "shutter-hub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shutter Hub — 开源的本地摄影素材管理软件",
+  "scripts": {
+    "dev": "pnpm --filter @shutter-hub/desktop dev",
+    "build": "pnpm --filter @shutter-hub/desktop build",
+    "typecheck": "pnpm --filter @shutter-hub/desktop typecheck",
+    "check": "pnpm --filter @shutter-hub/desktop check"
+  },
+  "packageManager": "pnpm@10.10.0",
+  "engines": {
+    "node": ">=20"
+  }
+}
