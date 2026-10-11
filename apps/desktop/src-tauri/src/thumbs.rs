@@ -49,7 +49,7 @@ fn is_embedded_capable(path: &Path) -> bool {
 ///
 /// 通过 JPEGInterchangeFormat(0x0201)/JPEGInterchangeFormatLength(0x0202)
 /// 字段定位预览数据，再按 TIFF 基址切片。
-fn extract_embedded_preview(path: &Path) -> Option<Vec<u8>> {
+pub fn extract_embedded_preview(path: &Path) -> Option<Vec<u8>> {
     let bytes = std::fs::read(path).ok()?;
     let tiff_base = tiff_base_offset(&bytes)?;
 
@@ -94,6 +94,24 @@ fn scale_and_save(bytes: &[u8], out: &Path) -> Result<()> {
     let img = img.thumbnail(THUMB_SIZE, THUMB_SIZE);
     img.save(out)?;
     Ok(())
+}
+
+/// 对已有缩略图计算感知哈希（dHash：9x8 灰度梯度 → 64 bit）。
+pub fn phash_of_thumb(thumb: &Path) -> Option<i64> {
+    let img = image::open(thumb).ok()?;
+    let gray = img.to_luma8();
+    let small = image::imageops::resize(&gray, 9, 8, image::imageops::FilterType::Triangle);
+    let mut bits = 0u64;
+    for y in 0..8 {
+        for x in 0..8 {
+            let left = small.get_pixel(x, y)[0] as i32;
+            let right = small.get_pixel(x + 1, y)[0] as i32;
+            if left > right {
+                bits |= 1 << (y * 8 + x);
+            }
+        }
+    }
+    Some(bits as i64)
 }
 
 #[cfg(test)]

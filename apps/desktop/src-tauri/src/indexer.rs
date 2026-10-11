@@ -2,6 +2,7 @@ use crate::db;
 use crate::metadata;
 use crate::models::{ScanProgress, ScanStats};
 use crate::thumbs;
+use crate::xmp;
 use anyhow::Result;
 use rayon::prelude::*;
 use std::path::Path;
@@ -13,27 +14,15 @@ const IMAGE_EXTENSIONS: &[&str] = &[
     "nef", "cr2", "cr3", "arw", "raf", "dng", "orf", "rw2", "pef", "srw", "x3f",
 ];
 
-pub struct ScanStatsAcc {
-    pub added: AtomicU64,
-    pub updated: AtomicU64,
-    pub skipped: AtomicU64,
-}
-
-impl ScanStatsAcc {
-    fn into_stats(self, folder_id: i64, total: u64) -> ScanStats {
-        ScanStats {
-            folder_id,
-            added: self.added.load(Ordering::Relaxed),
-            updated: self.updated.load(Ordering::Relaxed),
-            skipped: self.skipped.load(Ordering::Relaxed),
-            total,
-        }
-    }
+struct Counters {
+    added: AtomicU64,
+    updated: AtomicU64,
+    skipped: AtomicU64,
 }
 
 pub enum IndexOutcome {
     Added(i64),
-    Updated,
+    Updated(i64),
     Skipped,
 }
 
@@ -48,7 +37,7 @@ pub fn scan_folder(
     let total = paths.len() as u64;
 
     let conn = db::open_db(db_path)?;
-    let stats = ScanStatsAcc {
+    let counters = Counters {
         added: AtomicU64::new(0),
         updated: AtomicU64::new(0),
         skipped: AtomicU64::new(0),
@@ -59,17 +48,15 @@ pub fn scan_folder(
     for (i, path) in paths.iter().enumerate() {
         match index_one(&conn, folder_id, path)? {
             IndexOutcome::Added(photo_id) => {
-                stats.added.fetch_add(1, Ordering::Relaxed);
+                counters.added.fetch_add(1, Ordering::Relaxed);
                 need_thumbs.push((photo_id, path.clone()));
             }
-            IndexOutcome::Updated => {
-                stats.updated.fetch_add(1, Ordering::Relaxed);
-                if let Some(id) = photo_id_of(&conn, path)? {
-                    need_thumbs.push((id, path.clone()));
-                }
+            IndexOutcome::Updated(photo_id) => {
+                counters.updated.fetch_add(1, Ordering::Relaxed);
+                need_thumbs.push((photo_id, path.clone()));
             }
             IndexOutcome::Skipped => {
-                stats.skipped.fetch_add(1, Ordering::Relaxed);
+                counters.skipped.fetch_add(1, Ordering::Relaxed);
             }
         }
 
@@ -90,24 +77,31 @@ pub fn scan_folder(
         }
     }
 
-    let ok_ids: Vec<i64> = need_thumbs
+    let thumb_results: Vec<(i64, Option<i64>)> = need_thumbs
         .par_iter()
-        .filter_map(|(photo_id, src)| {
-            thumbs::generate(*photo_id, src, cache_dir)
-                .ok()
-                .flatten()
-                .map(|_| *photo_id)
+        .map(|(photo_id, src)| {
+            let thumb_ok = matches!(thumbs::generate(*photo_id, src, cache_dir), Ok(Some(_)));
+            let phash = thumb_ok
+                .then(|| thumbs::phash_of_thumb(&thumbs::thumb_path_for(cache_dir, *photo_id)))
+                .flatten();
+            (*photo_id, phash)
         })
         .collect();
 
-    for id in ok_ids {
+    for (photo_id, phash) in thumb_results {
         conn.execute(
-            "UPDATE photos SET has_thumb = 1 WHERE id = ?1",
-            rusqlite::params![id],
+            "UPDATE photos SET has_thumb = 1, phash = COALESCE(phash, ?2) WHERE id = ?1",
+            rusqlite::params![photo_id, phash],
         )?;
     }
 
-    Ok(stats.into_stats(folder_id, total))
+    Ok(ScanStats {
+        folder_id,
+        added: counters.added.load(Ordering::Relaxed),
+        updated: counters.updated.load(Ordering::Relaxed),
+        skipped: counters.skipped.load(Ordering::Relaxed),
+        total,
+    })
 }
 
 /// 索引单个文件，返回索引结果。
@@ -126,53 +120,97 @@ fn index_one(
         .unwrap_or(0);
 
     let path_str = path.to_string_lossy().into_owned();
+    let filename = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
 
-    let existing: Option<(i64, i64, i64)> = conn
+    let existing: Option<(i64, i64, i64, i64, String, String)> = conn
         .query_row(
-            "SELECT id, size, mtime_ms FROM photos WHERE path = ?1",
+            "SELECT id, size, mtime_ms, rating, color_label, flag FROM photos WHERE path = ?1",
             rusqlite::params![path_str],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                ))
+            },
         )
         .ok();
 
     let photo = metadata::extract(path);
+    let sidecar = xmp::read(path);
 
-    if let Some((id, old_size, old_mtime)) = existing {
+    let outcome = if let Some((id, old_size, old_mtime, old_rating, old_label, old_flag)) =
+        existing
+    {
         if old_size == size && old_mtime == mtime_ms {
-            return Ok(IndexOutcome::Skipped);
+            IndexOutcome::Skipped
+        } else {
+            let rating = sidecar
+                .as_ref()
+                .and_then(|s| s.rating)
+                .unwrap_or(old_rating);
+            let label = sidecar
+                .as_ref()
+                .and_then(|s| s.label.clone())
+                .unwrap_or(old_label);
+            let flag = sidecar
+                .as_ref()
+                .and_then(|s| s.flag.clone())
+                .unwrap_or(old_flag);
+
+            conn.execute(
+                "UPDATE photos SET size = ?1, mtime_ms = ?2, width = ?3, height = ?4,
+                 camera_make = ?5, camera_model = ?6, lens_model = ?7, focal_length = ?8,
+                 aperture = ?9, shutter_speed = ?10, iso = ?11, taken_at = ?12,
+                 rating = ?13, color_label = ?14, flag = ?15,
+                 indexed_at = datetime('now') WHERE id = ?16",
+                rusqlite::params![
+                    size,
+                    mtime_ms,
+                    photo.width,
+                    photo.height,
+                    photo.camera_make,
+                    photo.camera_model,
+                    photo.lens_model,
+                    photo.focal_length,
+                    photo.aperture,
+                    photo.shutter_speed,
+                    photo.iso,
+                    photo.taken_at,
+                    rating,
+                    label,
+                    flag,
+                    id
+                ],
+            )?;
+            IndexOutcome::Updated(id)
         }
-        conn.execute(
-            "UPDATE photos SET size = ?1, mtime_ms = ?2, width = ?3, height = ?4,
-             camera_make = ?5, camera_model = ?6, lens_model = ?7, focal_length = ?8,
-             aperture = ?9, shutter_speed = ?10, iso = ?11, taken_at = ?12,
-             indexed_at = datetime('now') WHERE id = ?13",
-            rusqlite::params![
-                size,
-                mtime_ms,
-                photo.width,
-                photo.height,
-                photo.camera_make,
-                photo.camera_model,
-                photo.lens_model,
-                photo.focal_length,
-                photo.aperture,
-                photo.shutter_speed,
-                photo.iso,
-                photo.taken_at,
-                id
-            ],
-        )?;
-        Ok(IndexOutcome::Updated)
     } else {
+        let rating = sidecar.as_ref().and_then(|s| s.rating).unwrap_or(0);
+        let label = sidecar
+            .as_ref()
+            .and_then(|s| s.label.clone())
+            .unwrap_or_default();
+        let flag = sidecar
+            .as_ref()
+            .and_then(|s| s.flag.clone())
+            .unwrap_or_default();
+
         conn.execute(
             "INSERT INTO photos (folder_id, path, filename, size, mtime_ms, width, height,
              camera_make, camera_model, lens_model, focal_length, aperture, shutter_speed,
-             iso, taken_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+             iso, taken_at, rating, color_label, flag)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
             rusqlite::params![
                 folder_id,
                 path_str,
-                path.file_name().map(|n| n.to_string_lossy().into_owned()),
+                filename,
                 size,
                 mtime_ms,
                 photo.width,
@@ -185,22 +223,30 @@ fn index_one(
                 photo.shutter_speed,
                 photo.iso,
                 photo.taken_at,
+                rating,
+                label,
+                flag,
             ],
         )?;
-        Ok(IndexOutcome::Added(conn.last_insert_rowid()))
+        IndexOutcome::Added(conn.last_insert_rowid())
+    };
+
+    if let IndexOutcome::Added(id) | IndexOutcome::Updated(id) = outcome {
+        sync_fts(conn, id)?;
     }
+
+    Ok(outcome)
 }
 
-fn photo_id_of(conn: &rusqlite::Connection, path: &Path) -> Result<Option<i64>> {
-    let path_str = path.to_string_lossy().into_owned();
-    let id = conn
-        .query_row(
-            "SELECT id FROM photos WHERE path = ?1",
-            rusqlite::params![path_str],
-            |row| row.get(0),
-        )
-        .ok();
-    Ok(id)
+fn sync_fts(conn: &rusqlite::Connection, photo_id: i64) -> Result<()> {
+    conn.execute("DELETE FROM photos_fts WHERE rowid = ?1", [photo_id])?;
+    conn.execute(
+        "INSERT INTO photos_fts(rowid, filename, path, camera_make, camera_model, lens_model)
+         SELECT id, filename, path, COALESCE(camera_make, ''), COALESCE(camera_model, ''),
+                COALESCE(lens_model, '') FROM photos WHERE id = ?1",
+        [photo_id],
+    )?;
+    Ok(())
 }
 
 fn collect_images(root: &Path) -> Vec<std::path::PathBuf> {
