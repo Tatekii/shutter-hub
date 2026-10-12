@@ -8,6 +8,9 @@ import type {
   AlbumDto,
   CardPhotoDto,
   DupeGroup,
+  ExportProgress,
+  ExportRequest,
+  ExportResult,
   FacetDto,
   FaceDto,
   FolderDto,
@@ -82,6 +85,9 @@ export const aiSearch = (query: string, limit?: number) =>
   invoke<PhotoDto[]>("ai_search", { query, limit });
 export const listFaces = (photoId: number) => invoke<FaceDto[]>("list_faces", { photoId });
 
+export const exportPhotos = (req: ExportRequest) =>
+  invoke<ExportResult>("export_photos", { req });
+
 export const thumbUrl = (thumbPath: string | null) =>
   thumbPath ? convertFileSrc(thumbPath) : null;
 
@@ -110,6 +116,9 @@ export const onAiDownload = (h: (p: AiDownloadProgress) => void) =>
   listenEvent("ai://download", h);
 export const onAiProgress = (h: (p: AiJobProgress) => void) => listenEvent("ai://progress", h);
 export const onAiDone = (h: (p: AiJobDone) => void) => listenEvent("ai://done", h);
+
+export const onExportProgress = (h: (p: ExportProgress) => void) =>
+  listenEvent("export://progress", h);
 
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

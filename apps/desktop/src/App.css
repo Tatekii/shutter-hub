@@ -1248,6 +1248,139 @@ kbd {
   border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
+/* ---------- export dialog ---------- */
+
+.export-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 250;
+}
+
+.export-dialog {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  width: 560px;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.export-dialog h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.export-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.export-label {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.export-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.export-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-end;
+}
+
+.export-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.export-row select,
+.export-row input[type="text"] {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 5px 8px;
+  font-size: 13px;
+  outline: none;
+}
+
+.export-row input[type="range"] {
+  width: 120px;
+  accent-color: var(--accent);
+}
+
+.export-quality {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.export-target {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.export-target-path {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+.export-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.export-progress-text {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.export-note {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.export-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.export-done {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.export-done-line {
+  color: var(--pick);
+}
+
 .viewer-flag {
   font-size: 11px;
   padding: 1px 6px;

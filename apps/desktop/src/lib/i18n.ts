@@ -81,7 +81,38 @@ const STRINGS: Record<string, { zh: string; en: string }> = {
   "select.addToAlbum": { zh: "加入相册…", en: "Add to album…" },
   "select.addToAlbumTitle": { zh: "加入相册", en: "Add to album" },
   "select.tagPlaceholder": { zh: "添加标签（逗号分隔）", en: "Add tags (comma separated)" },
+  "select.export": { zh: "导出", en: "Export" },
   "select.cancel": { zh: "取消选择", en: "Clear selection" },
+
+  // export
+  "export.title": { zh: "导出照片", en: "Export photos" },
+  "export.presets": { zh: "预设", en: "Presets" },
+  "export.presetOriginal": { zh: "原图备份", en: "Original backup" },
+  "export.presetWeb": { zh: "网页 2048", en: "Web 2048" },
+  "export.presetSocial": { zh: "社交 1080", en: "Social 1080" },
+  "export.presetPreview": { zh: "预览 800", en: "Preview 800" },
+  "export.format": { zh: "格式", en: "Format" },
+  "export.quality": { zh: "画质", en: "Quality" },
+  "export.maxDim": { zh: "长边限制", en: "Max long edge" },
+  "export.original": { zh: "原始尺寸", en: "Original size" },
+  "export.suffix": { zh: "文件名后缀", en: "Filename suffix" },
+  "export.suffixPlaceholder": { zh: "如 _edit", en: "e.g. _edit" },
+  "export.target": { zh: "导出到", en: "Export to" },
+  "export.choose": { zh: "选择…", en: "Choose…" },
+  "export.noTarget": { zh: "未选择目标文件夹", en: "No target folder selected" },
+  "export.start": { zh: "导出 {n} 张", en: "Export {n}" },
+  "export.running": {
+    zh: "导出中 {done}/{total} · {current}",
+    en: "Exporting {done}/{total} · {current}",
+  },
+  "export.done": { zh: "导出完成：{n} 张，共 {size}", en: "Export complete: {n} files, {size}" },
+  "export.failedCount": { zh: "失败 {n} 张", en: "{n} failed" },
+  "export.openFolder": { zh: "打开文件夹", en: "Open folder" },
+  "export.close": { zh: "完成", en: "Done" },
+  "export.videoNote": {
+    zh: "视频按原文件拷贝，不做转码",
+    en: "Videos are copied as-is (no transcode)",
+  },
 
   // inspector
   "inspector.title": { zh: "照片详情", en: "Photo details" },

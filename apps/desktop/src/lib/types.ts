@@ -180,3 +180,25 @@ export interface FaceDto {
   w: number;
   h: number;
 }
+
+export interface ExportRequest {
+  photoIds: number[];
+  targetDir: string;
+  format: "jpeg" | "png" | "webp";
+  quality: number;
+  maxDimension: number | null;
+  filenameSuffix: string;
+}
+
+export interface ExportProgress {
+  processed: number;
+  total: number;
+  current: string;
+}
+
+export interface ExportResult {
+  exported: number;
+  failed: string[];
+  totalBytes: number;
+  targetDir: string;
+}

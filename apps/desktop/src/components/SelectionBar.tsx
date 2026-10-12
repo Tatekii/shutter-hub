@@ -9,6 +9,7 @@ export function SelectionBar() {
   const clearSelection = useApp((s) => s.clearSelection);
   const addSelectedToAlbum = useApp((s) => s.addSelectedToAlbum);
   const addTagsToSelected = useApp((s) => s.addTagsToSelected);
+  const openExport = useApp((s) => s.openExport);
   const [tagInput, setTagInput] = useState("");
 
   if (selectedIds.size === 0) return null;
@@ -48,6 +49,9 @@ export function SelectionBar() {
           placeholder={t("select.tagPlaceholder")}
         />
       </form>
+      <button className="btn" onClick={() => openExport([...selectedIds])}>
+        {t("select.export")}
+      </button>
       <button className="btn" onClick={clearSelection}>
         {t("select.cancel")}
       </button>

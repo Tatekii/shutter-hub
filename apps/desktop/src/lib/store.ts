@@ -8,6 +8,9 @@ import type {
   AlbumDto,
   CardPhotoDto,
   DupeGroup,
+  ExportProgress,
+  ExportRequest,
+  ExportResult,
   FacetDto,
   FolderDto,
   HashProgress,
@@ -63,6 +66,10 @@ interface AppState {
   aiResults: PhotoDto[] | null;
   aiSearching: boolean;
   searchMode: "keyword" | "ai";
+  exportOpen: boolean;
+  exportIds: number[];
+  exportProgress: ExportProgress | null;
+  exportResult: ExportResult | null;
 
   init: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -107,6 +114,10 @@ interface AppState {
   semanticSearch: (q: string) => Promise<void>;
   clearAiResults: () => void;
   setSearchMode: (m: "keyword" | "ai") => void;
+  openExport: (ids: number[]) => void;
+  closeExport: () => void;
+  runExport: (req: ExportRequest) => Promise<void>;
+  setExportProgress: (p: ExportProgress | null) => void;
   setAiDownload: (p: AiDownloadProgress | null) => void;
   setAiProgress: (p: AiJobProgress | null) => void;
   setError: (e: string | null) => void;
@@ -165,6 +176,10 @@ export const useApp = create<AppState>((set, get) => ({
   aiResults: null,
   aiSearching: false,
   searchMode: "keyword",
+  exportOpen: false,
+  exportIds: [],
+  exportProgress: null,
+  exportResult: null,
 
   init: async () => {
     // 纯浏览器调试（pnpm dev）：无 Tauri IPC，仅渲染 UI
@@ -562,6 +577,22 @@ export const useApp = create<AppState>((set, get) => ({
 
   clearAiResults: () => set({ aiResults: null }),
   setSearchMode: (m) => set({ searchMode: m }),
+
+  openExport: (ids) =>
+    set({ exportOpen: true, exportIds: ids, exportProgress: null, exportResult: null }),
+  closeExport: () =>
+    set({ exportOpen: false, exportProgress: null, exportResult: null }),
+  runExport: async (req) => {
+    set({ exportProgress: null, exportResult: null });
+    try {
+      const exportResult = await api.exportPhotos(req);
+      set({ exportResult, exportProgress: null });
+    } catch (e) {
+      set({ exportProgress: null, error: String(e) });
+    }
+  },
+  setExportProgress: (p) => set({ exportProgress: p }),
+
   setAiDownload: (p) => set({ aiDownload: p }),
   setAiProgress: (p) => set({ aiProgress: p }),
   setError: (e) => set({ error: e }),

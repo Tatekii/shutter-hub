@@ -11,6 +11,7 @@ import { ScanBar } from "./components/ScanBar";
 import { SelectionBar } from "./components/SelectionBar";
 import { Sidebar } from "./components/Sidebar";
 import { Viewer } from "./components/Viewer";
+import { ExportDialog } from "./components/ExportDialog";
 import * as api from "./lib/api";
 import { useT } from "./lib/i18n";
 import { useApp } from "./lib/store";
@@ -39,6 +40,7 @@ function App() {
   const aiResults = useApp((s) => s.aiResults);
   const clearAiResults = useApp((s) => s.clearAiResults);
   const aiSearching = useApp((s) => s.aiSearching);
+  const exportOpen = useApp((s) => s.exportOpen);
   const t = useT();
   const [showHelp, setShowHelp] = useState(false);
   const [showVolumePicker, setShowVolumePicker] = useState(false);
@@ -75,6 +77,7 @@ function App() {
         s.setAiProgress(null);
         void s.refreshAiStatus();
       }),
+      api.onExportProgress(useApp.getState().setExportProgress),
     ];
     // allSettled：任一监听注册失败（如窗口销毁）不产生未处理 rejection
     const all = Promise.allSettled(unsubscribers);
@@ -287,6 +290,7 @@ function App() {
 
       {cardVolume && <CardBrowser />}
       {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
+      {exportOpen && <ExportDialog />}
       <Viewer />
     </div>
   );
