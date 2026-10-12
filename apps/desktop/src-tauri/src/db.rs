@@ -83,6 +83,11 @@ const MIGRATIONS: &[&str] = &[
     ALTER TABLE photos ADD COLUMN content_hash TEXT;
     ALTER TABLE photos ADD COLUMN phash        INTEGER;
     "#,
+    // v6: 视频素材（媒体类型 + 时长）
+    r#"
+    ALTER TABLE photos ADD COLUMN media_type  TEXT NOT NULL DEFAULT 'photo';
+    ALTER TABLE photos ADD COLUMN duration_ms INTEGER;
+    "#,
 ];
 
 pub fn open_db(db_path: &Path) -> Result<Connection> {

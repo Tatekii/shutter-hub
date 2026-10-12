@@ -13,6 +13,24 @@ const IMAGE_EXTENSIONS: &[&str] = &[
     "nef", "cr2", "cr3", "arw", "raf", "dng", "orf", "rw2", "pef", "srw", "x3f",
 ];
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MediaKind {
+    Photo,
+    Video,
+}
+
+/// 按扩展名判定媒体类型；不认识的返回 None。
+pub fn classify(path: &Path) -> Option<MediaKind> {
+    let ext = path.extension()?.to_str()?.to_ascii_lowercase();
+    if IMAGE_EXTENSIONS.contains(&ext.as_str()) {
+        Some(MediaKind::Photo)
+    } else if crate::video::is_video(path) {
+        Some(MediaKind::Video)
+    } else {
+        None
+    }
+}
+
 struct Counters {
     added: AtomicU64,
     updated: AtomicU64,
@@ -76,22 +94,25 @@ where
         }
     }
 
-    let thumb_results: Vec<(i64, Option<i64>)> = need_thumbs
+    let thumb_results: Vec<(i64, bool, Option<i64>)> = need_thumbs
         .par_iter()
         .map(|(photo_id, src)| {
             let thumb_ok = matches!(thumbs::generate(*photo_id, src, cache_dir), Ok(Some(_)));
             let phash = thumb_ok
                 .then(|| thumbs::phash_of_thumb(&thumbs::thumb_path_for(cache_dir, *photo_id)))
                 .flatten();
-            (*photo_id, phash)
+            (*photo_id, thumb_ok, phash)
         })
         .collect();
 
-    for (photo_id, phash) in thumb_results {
-        conn.execute(
-            "UPDATE photos SET has_thumb = 1, phash = COALESCE(phash, ?2) WHERE id = ?1",
-            rusqlite::params![photo_id, phash],
-        )?;
+    for (photo_id, thumb_ok, phash) in thumb_results {
+        // 仅缩略图真正生成成功时才标记（视频缺 ffmpeg、损坏文件等保持无缩略图）
+        if thumb_ok {
+            conn.execute(
+                "UPDATE photos SET has_thumb = 1, phash = COALESCE(phash, ?2) WHERE id = ?1",
+                rusqlite::params![photo_id, phash],
+            )?;
+        }
     }
 
     Ok(ScanStats {
@@ -141,7 +162,28 @@ fn index_one(
         )
         .ok();
 
-    let photo = metadata::extract(path);
+    let kind = classify(path);
+    let video_info = if kind == Some(MediaKind::Video) {
+        // 视频：ffprobe 不可用时宽高/时长留空，其余字段由容器解析兜底。
+        crate::video::probe(path).unwrap_or_default()
+    } else {
+        crate::video::VideoInfo::default()
+    };
+    let photo = if kind == Some(MediaKind::Video) {
+        metadata::PhotoMeta {
+            width: video_info.width,
+            height: video_info.height,
+            taken_at: video_info.taken_at.clone(),
+            ..Default::default()
+        }
+    } else {
+        metadata::extract(path)
+    };
+    let media_type = if kind == Some(MediaKind::Video) {
+        "video"
+    } else {
+        "photo"
+    };
     let sidecar = xmp::read(path);
 
     let outcome = if let Some((id, old_size, old_mtime, old_rating, old_label, old_flag)) =
@@ -168,7 +210,8 @@ fn index_one(
                  camera_make = ?5, camera_model = ?6, lens_model = ?7, focal_length = ?8,
                  aperture = ?9, shutter_speed = ?10, iso = ?11, taken_at = ?12,
                  rating = ?13, color_label = ?14, flag = ?15,
-                 indexed_at = datetime('now') WHERE id = ?16",
+                 media_type = ?16, duration_ms = ?17,
+                 indexed_at = datetime('now') WHERE id = ?18",
                 rusqlite::params![
                     size,
                     mtime_ms,
@@ -185,6 +228,8 @@ fn index_one(
                     rating,
                     label,
                     flag,
+                    media_type,
+                    video_info.duration_ms,
                     id
                 ],
             )?;
@@ -204,8 +249,8 @@ fn index_one(
         conn.execute(
             "INSERT INTO photos (folder_id, path, filename, size, mtime_ms, width, height,
              camera_make, camera_model, lens_model, focal_length, aperture, shutter_speed,
-             iso, taken_at, rating, color_label, flag)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
+             iso, taken_at, rating, color_label, flag, media_type, duration_ms)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
             rusqlite::params![
                 folder_id,
                 path_str,
@@ -225,6 +270,8 @@ fn index_one(
                 rating,
                 label,
                 flag,
+                media_type,
+                video_info.duration_ms,
             ],
         )?;
         IndexOutcome::Added(conn.last_insert_rowid())
@@ -255,12 +302,8 @@ fn collect_images(root: &Path) -> Vec<std::path::PathBuf> {
         if !entry.file_type().is_file() {
             continue;
         }
-        let path = entry.path();
-        let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
-            continue;
-        };
-        if IMAGE_EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()) {
-            paths.push(path.to_path_buf());
+        if classify(entry.path()).is_some() {
+            paths.push(entry.path().to_path_buf());
         }
     }
     paths

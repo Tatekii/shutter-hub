@@ -71,7 +71,7 @@ fn build_query_sql(q: PhotoQuery) -> (String, Vec<Box<dyn rusqlite::ToSql>>) {
     let mut sql = String::from(
         "SELECT id, folder_id, path, filename, size, width, height, camera_make, camera_model,
          lens_model, focal_length, aperture, shutter_speed, iso, taken_at, has_thumb,
-         rating, color_label, flag FROM photos",
+         rating, color_label, flag, media_type, duration_ms FROM photos",
     );
     let mut clauses: Vec<String> = Vec::new();
     let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
@@ -85,6 +85,10 @@ fn build_query_sql(q: PhotoQuery) -> (String, Vec<Box<dyn rusqlite::ToSql>>) {
     }
     if let Some(v) = &q.flag {
         clauses.push("flag = ?".to_string());
+        params.push(Box::new(v.clone()));
+    }
+    if let Some(v) = &q.media_type {
+        clauses.push("media_type = ?".to_string());
         params.push(Box::new(v.clone()));
     }
     if let Some(v) = q.album_id {
@@ -232,6 +236,43 @@ fn duplicate_detection_by_content_hash() {
         !similar.is_empty(),
         "A and C should be detected as similar"
     );
+
+    std::fs::remove_dir_all(ctx.dir.parent().unwrap()).ok();
+}
+
+#[test]
+fn video_files_are_indexed_without_ffmpeg() {
+    let _guard = LOCK.lock().unwrap();
+    let ctx = setup("video");
+
+    // 无效容器内容：无 ffmpeg 环境下仍应完成索引（仅无缩略图/时长）
+    std::fs::write(ctx.dir.join("CLIP_0001.mp4"), b"not a real video").unwrap();
+    make_jpeg(&ctx.dir.join("IMG_0001.jpg"), 320, 240, 5);
+
+    let stats = scan(&ctx);
+    assert_eq!(stats.added, 2, "both video and photo indexed");
+
+    let conn = db::open_db(&ctx.db).unwrap();
+    let (media_type, has_thumb): (String, i64) = conn
+        .query_row(
+            "SELECT media_type, has_thumb FROM photos WHERE filename = 'CLIP_0001.mp4'",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(media_type, "video");
+    assert_eq!(has_thumb, 0, "undecodable video → no thumbnail");
+
+    // 按媒体类型过滤
+    let videos = query_photos(
+        &ctx,
+        PhotoQuery {
+            media_type: Some("video".into()),
+            ..Default::default()
+        },
+    );
+    assert_eq!(videos.len(), 1);
+    assert_eq!(videos[0].media_type, "video");
 
     std::fs::remove_dir_all(ctx.dir.parent().unwrap()).ok();
 }

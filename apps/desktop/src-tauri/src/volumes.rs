@@ -11,6 +11,7 @@ use crate::commands::to_str;
 const CARD_IMAGE_EXTENSIONS: &[&str] = &[
     "jpg", "jpeg", "png", "webp", "tif", "tiff", "heic", "heif",
     "nef", "cr2", "cr3", "arw", "raf", "dng", "orf", "rw2", "pef", "srw", "x3f",
+    "mp4", "m4v", "mov", "mkv", "avi", "wmv", "webm", "mts", "m2ts", "3gp", "mpg", "mpeg",
 ];
 
 /// 列出可移动卷（SD/TF 卡、U 盘等）。
@@ -77,6 +78,11 @@ pub fn browse_volume(state: State<'_, AppState>, path: String) -> Result<Vec<Car
             camera_model: photo.camera_model,
             taken_at: photo.taken_at,
             thumb_path: thumb_path.map(|p| p.to_string_lossy().into_owned()),
+            media_type: if crate::video::is_video(file_path) {
+                "video".into()
+            } else {
+                "photo".into()
+            },
         });
     }
     photos.sort_by(|a, b| {
@@ -95,6 +101,12 @@ fn card_thumb(file_path: &Path, card_cache: &Path) -> Option<PathBuf> {
     let out = card_cache.join(format!("{key}.jpg"));
     if out.exists() {
         return Some(out);
+    }
+
+    // 视频：ffmpeg 抽帧（未安装则无缩略图）
+    if crate::video::is_video(file_path) {
+        return crate::video::make_thumb(file_path, &out, crate::thumbs::THUMB_SIZE)
+            .then_some(out);
     }
 
     // 优先抽相机内嵌预览（RAW 零解码）

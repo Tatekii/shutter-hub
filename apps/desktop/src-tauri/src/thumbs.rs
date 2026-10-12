@@ -15,10 +15,14 @@ pub fn thumb_path_for(cache_dir: &Path, photo_id: i64) -> PathBuf {
     cache_dir.join(format!("{photo_id}.jpg"))
 }
 
-/// 生成缩略图：优先抽相机内嵌 JPEG 预览（RAW 零解码），失败则回退到
-/// 完整解码 + 缩放。返回写入的缩略图路径。
+/// 生成缩略图：视频用 ffmpeg 抽帧（未安装则跳过），图片优先抽相机内嵌
+/// JPEG 预览（RAW 零解码），失败则回退到完整解码 + 缩放。返回写入的缩略图路径。
 pub fn generate(photo_id: i64, src: &Path, cache_dir: &Path) -> Result<Option<PathBuf>> {
     let out = thumb_path_for(cache_dir, photo_id);
+
+    if crate::video::is_video(src) {
+        return Ok(crate::video::make_thumb(src, &out, THUMB_SIZE).then_some(out));
+    }
 
     if is_embedded_capable(src) {
         if let Some(bytes) = extract_embedded_preview(src) {

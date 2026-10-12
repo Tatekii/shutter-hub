@@ -5,6 +5,7 @@ pub mod metadata;
 pub mod models;
 pub mod preview;
 pub mod thumbs;
+pub mod video;
 pub mod volumes;
 pub mod xmp;
 

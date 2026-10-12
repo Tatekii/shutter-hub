@@ -31,6 +31,9 @@ pub struct PhotoDto {
     pub rating: i64,
     pub color_label: String,
     pub flag: String,
+    /// "photo" | "video"
+    pub media_type: String,
+    pub duration_ms: Option<i64>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -51,6 +54,8 @@ pub struct PhotoQuery {
     pub min_rating: Option<i64>,
     pub color_label: Option<String>,
     pub flag: Option<String>,
+    /// "photo" | "video"
+    pub media_type: Option<String>,
     pub album_id: Option<i64>,
     pub tag_id: Option<i64>,
 }
@@ -117,6 +122,8 @@ pub struct CardPhotoDto {
     pub camera_model: Option<String>,
     pub taken_at: Option<String>,
     pub thumb_path: Option<String>,
+    /// "photo" | "video"
+    pub media_type: String,
 }
 
 #[derive(Debug, Deserialize)]

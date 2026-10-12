@@ -10,7 +10,7 @@ use tauri_plugin_dialog::DialogExt;
 
 pub(crate) const PHOTO_COLUMNS: &str = "id, folder_id, path, filename, size, width, height, camera_make,
     camera_model, lens_model, focal_length, aperture, shutter_speed, iso, taken_at, has_thumb,
-    rating, color_label, flag";
+    rating, color_label, flag, media_type, duration_ms";
 
 #[tauri::command]
 pub async fn add_folder(
@@ -399,6 +399,12 @@ fn build_photo_query(q: &PhotoQuery) -> (String, Vec<Box<dyn rusqlite::ToSql>>) 
             params.push(Box::new(v.clone()));
         }
     }
+    if let Some(v) = &q.media_type {
+        if v == "photo" || v == "video" {
+            clauses.push("media_type = ?".to_string());
+            params.push(Box::new(v.clone()));
+        }
+    }
     if let Some(id) = q.album_id {
         clauses.push(
             "id IN (SELECT photo_id FROM album_photos WHERE album_id = ?)".to_string(),
@@ -478,6 +484,8 @@ pub fn row_to_photo(
         rating: row.get("rating")?,
         color_label: row.get("color_label")?,
         flag: row.get("flag")?,
+        media_type: row.get("media_type")?,
+        duration_ms: row.get("duration_ms")?,
     })
 }
 
