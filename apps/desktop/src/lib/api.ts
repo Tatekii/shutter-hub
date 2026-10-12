@@ -25,6 +25,8 @@ import type {
   PhotoQuery,
   ScanProgress,
   ScanStats,
+  ShareCardRequest,
+  ShareCardResult,
   SimilarPair,
   TagDto,
   VolumeDto,
@@ -92,6 +94,8 @@ export const exportPhotos = (req: ExportRequest) =>
   invoke<ExportResult>("export_photos", { req });
 export const renderCollage = (req: CollageRequest) =>
   invoke<CollageResult>("render_collage", { req });
+export const renderShareCards = (req: ShareCardRequest) =>
+  invoke<ShareCardResult>("render_share_cards", { req });
 
 export const getEdit = (id: number) => invoke<Adjustments>("get_edit", { id });
 export const setEdit = (id: number, adj: Adjustments) =>

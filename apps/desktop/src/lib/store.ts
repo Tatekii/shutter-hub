@@ -22,6 +22,8 @@ import type {
   PhotoDto,
   PhotoQuery,
   ScanProgress,
+  ShareCardRequest,
+  ShareCardResult,
   SimilarPair,
   TagDto,
   VolumeDto,
@@ -76,6 +78,10 @@ interface AppState {
   collageIds: number[];
   collageBusy: boolean;
   collageResult: CollageResult | null;
+  shareOpen: boolean;
+  shareIds: number[];
+  shareBusy: boolean;
+  shareResult: ShareCardResult | null;
 
   init: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -127,6 +133,9 @@ interface AppState {
   openCollage: (ids: number[]) => void;
   closeCollage: () => void;
   runCollage: (req: CollageRequest) => Promise<void>;
+  openShare: (ids: number[]) => void;
+  closeShare: () => void;
+  runShare: (req: ShareCardRequest) => Promise<void>;
   setAiDownload: (p: AiDownloadProgress | null) => void;
   setAiProgress: (p: AiJobProgress | null) => void;
   setError: (e: string | null) => void;
@@ -193,6 +202,10 @@ export const useApp = create<AppState>((set, get) => ({
   collageIds: [],
   collageBusy: false,
   collageResult: null,
+  shareOpen: false,
+  shareIds: [],
+  shareBusy: false,
+  shareResult: null,
 
   init: async () => {
     // 纯浏览器调试（pnpm dev）：无 Tauri IPC，仅渲染 UI
@@ -616,6 +629,19 @@ export const useApp = create<AppState>((set, get) => ({
       set({ collageResult, collageBusy: false });
     } catch (e) {
       set({ collageBusy: false, error: String(e) });
+    }
+  },
+
+  openShare: (ids) =>
+    set({ shareOpen: true, shareIds: ids, shareResult: null, shareBusy: false }),
+  closeShare: () => set({ shareOpen: false, shareResult: null }),
+  runShare: async (req) => {
+    set({ shareBusy: true, shareResult: null });
+    try {
+      const shareResult = await api.renderShareCards(req);
+      set({ shareResult, shareBusy: false });
+    } catch (e) {
+      set({ shareBusy: false, error: String(e) });
     }
   },
 

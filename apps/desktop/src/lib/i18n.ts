@@ -83,7 +83,30 @@ const STRINGS: Record<string, { zh: string; en: string }> = {
   "select.tagPlaceholder": { zh: "添加标签（逗号分隔）", en: "Add tags (comma separated)" },
   "select.export": { zh: "导出", en: "Export" },
   "select.collage": { zh: "拼图", en: "Collage" },
+  "select.shareCard": { zh: "分享卡", en: "Share card" },
   "select.cancel": { zh: "取消选择", en: "Clear selection" },
+
+  // share card
+  "share.title": { zh: "分享卡", en: "Share card" },
+  "share.aspect": { zh: "比例", en: "Aspect" },
+  "share.showInfo": { zh: "显示 EXIF 信息条", en: "Show EXIF info band" },
+  "share.watermark": { zh: "水印文字", en: "Watermark text" },
+  "share.watermarkPlaceholder": { zh: "如 @你的ID（可选）", en: "e.g. @yourid (optional)" },
+  "share.generate": { zh: "生成分享卡", en: "Generate cards" },
+  "share.done": { zh: "已生成 {n} 张分享卡", en: "{n} card(s) generated" },
+  "share.failed": { zh: "失败 {n} 张", en: "{n} failed" },
+  "share.copyCaption": { zh: "复制文案", en: "Copy caption" },
+  "share.copyCaptionTitle": {
+    zh: "复制 EXIF 文案（含话题标签）",
+    en: "Copy EXIF caption with hashtags",
+  },
+
+  // export watermark
+  "export.watermark": { zh: "水印文字", en: "Watermark" },
+  "export.watermarkPlaceholder": {
+    zh: "右下角水印（可选）",
+    en: "Bottom-right watermark (optional)",
+  },
 
   // collage
   "collage.title": { zh: "拼图工坊", en: "Collage studio" },

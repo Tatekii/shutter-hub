@@ -200,6 +200,7 @@ export interface ExportRequest {
   quality: number;
   maxDimension: number | null;
   filenameSuffix: string;
+  watermark?: string | null;
 }
 
 export interface ExportProgress {
@@ -231,5 +232,20 @@ export interface CollageResult {
   path: string;
   width: number;
   height: number;
+  failed: string[];
+}
+
+export interface ShareCardRequest {
+  photoIds: number[];
+  aspect: "1:1" | "4:5" | "3:4";
+  background: string;
+  textColor: string;
+  showInfo: boolean;
+  watermark: string;
+  targetDir: string;
+}
+
+export interface ShareCardResult {
+  paths: string[];
   failed: string[];
 }

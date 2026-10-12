@@ -13,6 +13,7 @@ import { Sidebar } from "./components/Sidebar";
 import { Viewer } from "./components/Viewer";
 import { ExportDialog } from "./components/ExportDialog";
 import { CollageDialog } from "./components/CollageDialog";
+import { ShareCardDialog } from "./components/ShareCardDialog";
 import * as api from "./lib/api";
 import { useT } from "./lib/i18n";
 import { useApp } from "./lib/store";
@@ -43,6 +44,7 @@ function App() {
   const aiSearching = useApp((s) => s.aiSearching);
   const exportOpen = useApp((s) => s.exportOpen);
   const collageOpen = useApp((s) => s.collageOpen);
+  const shareOpen = useApp((s) => s.shareOpen);
   const t = useT();
   const [showHelp, setShowHelp] = useState(false);
   const [showVolumePicker, setShowVolumePicker] = useState(false);
@@ -294,6 +296,7 @@ function App() {
       {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
       {exportOpen && <ExportDialog />}
       {collageOpen && <CollageDialog />}
+      {shareOpen && <ShareCardDialog />}
       <Viewer />
     </div>
   );

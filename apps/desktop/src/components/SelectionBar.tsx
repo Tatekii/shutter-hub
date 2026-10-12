@@ -11,6 +11,7 @@ export function SelectionBar() {
   const addTagsToSelected = useApp((s) => s.addTagsToSelected);
   const openExport = useApp((s) => s.openExport);
   const openCollage = useApp((s) => s.openCollage);
+  const openShare = useApp((s) => s.openShare);
   const [tagInput, setTagInput] = useState("");
 
   if (selectedIds.size === 0) return null;
@@ -58,6 +59,9 @@ export function SelectionBar() {
           {t("select.collage")}
         </button>
       )}
+      <button className="btn" onClick={() => openShare([...selectedIds])}>
+        {t("select.shareCard")}
+      </button>
       <button className="btn" onClick={clearSelection}>
         {t("select.cancel")}
       </button>

@@ -41,6 +41,7 @@ export function ExportDialog() {
   const [quality, setQuality] = useState(88);
   const [maxDimension, setMaxDimension] = useState<number | null>(2048);
   const [suffix, setSuffix] = useState("");
+  const [watermark, setWatermark] = useState("");
   const [targetDir, setTargetDir] = useState(
     () => localStorage.getItem(LAST_DIR_KEY) ?? "",
   );
@@ -183,6 +184,17 @@ export function ExportDialog() {
                   onChange={(e) => setSuffix(e.target.value)}
                 />
               </label>
+
+              <label>
+                {t("export.watermark")}
+                <input
+                  type="text"
+                  value={watermark}
+                  disabled={running}
+                  placeholder={t("export.watermarkPlaceholder")}
+                  onChange={(e) => setWatermark(e.target.value)}
+                />
+              </label>
             </div>
 
             <div className="export-section">
@@ -234,6 +246,7 @@ export function ExportDialog() {
                     quality,
                     maxDimension,
                     filenameSuffix: suffix,
+                    watermark: watermark.trim() ? watermark.trim() : null,
                   })
                 }
               >
