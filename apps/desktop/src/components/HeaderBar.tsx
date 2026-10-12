@@ -3,6 +3,7 @@ import { useApp } from "../lib/store";
 import { useT } from "../lib/i18n";
 import { viewTitle } from "./Sidebar";
 import { FilterPanel } from "./FilterPanel";
+import { AiPanel } from "./AiPanel";
 
 export function HeaderBar({ onShowHelp }: { onShowHelp: () => void }) {
   const t = useT();
@@ -15,7 +16,13 @@ export function HeaderBar({ onShowHelp }: { onShowHelp: () => void }) {
   const addFolder = useApp((s) => s.addFolder);
   const computeHashes = useApp((s) => s.computeHashes);
   const hashBusy = useApp((s) => s.hashBusy);
+  const searchMode = useApp((s) => s.searchMode);
+  const setSearchMode = useApp((s) => s.setSearchMode);
+  const semanticSearch = useApp((s) => s.semanticSearch);
+  const clearAiResults = useApp((s) => s.clearAiResults);
+  const aiResults = useApp((s) => s.aiResults);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [search, setSearch] = useState(query.q ?? "");
   const [dirty, setDirty] = useState(false);
 
@@ -25,6 +32,14 @@ export function HeaderBar({ onShowHelp }: { onShowHelp: () => void }) {
   }, [query.q]);
 
   const activeFilterCount = Object.keys(query).filter((k) => k !== "q").length;
+
+  const runSearch = () => {
+    if (searchMode === "ai") {
+      void semanticSearch(search);
+    } else {
+      void setQuery({ q: search || undefined });
+    }
+  };
 
   return (
     <>
@@ -36,6 +51,16 @@ export function HeaderBar({ onShowHelp }: { onShowHelp: () => void }) {
         </div>
 
         <div className="search-box">
+          <button
+            className={`search-mode ${searchMode === "ai" ? "on" : ""}`}
+            title={searchMode === "ai" ? t("ai.semanticSearch") : t("ai.keywordSearch")}
+            onClick={() => {
+              setSearchMode(searchMode === "ai" ? "keyword" : "ai");
+              setDirty(true);
+            }}
+          >
+            {searchMode === "ai" ? "AI" : "⌕"}
+          </button>
           <input
             value={search}
             placeholder={t("header.searchPlaceholder")}
@@ -45,7 +70,7 @@ export function HeaderBar({ onShowHelp }: { onShowHelp: () => void }) {
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
-                void setQuery({ q: search || undefined });
+                runSearch();
                 setDirty(false);
               }
             }}
@@ -57,6 +82,7 @@ export function HeaderBar({ onShowHelp }: { onShowHelp: () => void }) {
               onClick={() => {
                 setSearch("");
                 setDirty(false);
+                clearAiResults();
                 void setQuery({ q: undefined });
               }}
             >
@@ -72,6 +98,14 @@ export function HeaderBar({ onShowHelp }: { onShowHelp: () => void }) {
         >
           {t("header.filterBtn")}
           {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+        </button>
+
+        <button
+          className={`btn ${aiOpen ? "btn-active" : ""} ${aiResults ? "btn-active" : ""}`}
+          onClick={() => setAiOpen(!aiOpen)}
+          title={t("ai.title")}
+        >
+          ✦ {t("header.ai")}
         </button>
 
         <button className="btn" onClick={() => void computeHashes()} disabled={hashBusy}>
@@ -99,6 +133,7 @@ export function HeaderBar({ onShowHelp }: { onShowHelp: () => void }) {
         </div>
       </header>
       {filterOpen && <FilterPanel onClose={() => setFilterOpen(false)} />}
+      {aiOpen && <AiPanel onClose={() => setAiOpen(false)} />}
     </>
   );
 }

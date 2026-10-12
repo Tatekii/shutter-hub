@@ -2,6 +2,9 @@ import { create } from "zustand";
 import * as api from "./api";
 import type { Lang } from "./i18n";
 import type {
+  AiDownloadProgress,
+  AiJobProgress,
+  AiStatus,
   AlbumDto,
   CardPhotoDto,
   DupeGroup,
@@ -54,6 +57,12 @@ interface AppState {
   ingestProgress: IngestProgress | null;
   ingestResult: IngestResult | null;
   lang: Lang;
+  aiStatus: AiStatus | null;
+  aiDownload: AiDownloadProgress | null;
+  aiProgress: AiJobProgress | null;
+  aiResults: PhotoDto[] | null;
+  aiSearching: boolean;
+  searchMode: "keyword" | "ai";
 
   init: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -91,6 +100,15 @@ interface AppState {
   loadDupes: () => Promise<void>;
   setDupeTab: (t: "exact" | "similar") => void;
   setLang: (l: Lang) => void;
+  refreshAiStatus: () => Promise<void>;
+  downloadModels: () => Promise<void>;
+  computeEmbeddings: () => Promise<void>;
+  detectFaces: () => Promise<void>;
+  semanticSearch: (q: string) => Promise<void>;
+  clearAiResults: () => void;
+  setSearchMode: (m: "keyword" | "ai") => void;
+  setAiDownload: (p: AiDownloadProgress | null) => void;
+  setAiProgress: (p: AiJobProgress | null) => void;
   setError: (e: string | null) => void;
   setScanning: (s: ScanProgress | null) => void;
   setHashing: (h: HashProgress | null) => void;
@@ -141,10 +159,16 @@ export const useApp = create<AppState>((set, get) => ({
   ingestProgress: null,
   ingestResult: null,
   lang: detectLang(),
+  aiStatus: null,
+  aiDownload: null,
+  aiProgress: null,
+  aiResults: null,
+  aiSearching: false,
+  searchMode: "keyword",
 
   init: async () => {
     try {
-      const [folders, albums, tags, stats, facets, photos, volumes] =
+      const [folders, albums, tags, stats, facets, photos, volumes, aiStatus] =
         await Promise.all([
           api.listFolders(),
           api.listAlbums(),
@@ -153,8 +177,9 @@ export const useApp = create<AppState>((set, get) => ({
           api.listFacets(),
           api.listPhotos({}),
           api.listVolumes(),
+          api.aiStatus(),
         ]);
-      set({ folders, albums, tags, stats, facets, photos, volumes, loading: false });
+      set({ folders, albums, tags, stats, facets, photos, volumes, aiStatus, loading: false });
     } catch (e) {
       set({ loading: false, error: String(e) });
     }
@@ -478,6 +503,62 @@ export const useApp = create<AppState>((set, get) => ({
     localStorage.setItem("shutter_hub.lang", l);
     set({ lang: l });
   },
+
+  refreshAiStatus: async () => {
+    try {
+      set({ aiStatus: await api.aiStatus() });
+    } catch (e) {
+      set({ error: String(e) });
+    }
+  },
+
+  downloadModels: async () => {
+    set({ aiDownload: null });
+    try {
+      await api.aiDownloadModels();
+    } catch (e) {
+      set({ error: String(e) });
+    }
+    await get().refreshAiStatus();
+  },
+
+  computeEmbeddings: async () => {
+    try {
+      await api.aiComputeEmbeddings();
+    } catch (e) {
+      set({ error: String(e) });
+    }
+    await get().refreshAiStatus();
+  },
+
+  detectFaces: async () => {
+    try {
+      await api.aiDetectFaces();
+    } catch (e) {
+      set({ error: String(e) });
+    }
+    await get().refreshAiStatus();
+  },
+
+  semanticSearch: async (q) => {
+    const query = q.trim();
+    if (!query) {
+      set({ aiResults: null });
+      return;
+    }
+    set({ aiSearching: true });
+    try {
+      const aiResults = await api.aiSearch(query, 120);
+      set({ aiResults, aiSearching: false });
+    } catch (e) {
+      set({ aiSearching: false, error: String(e) });
+    }
+  },
+
+  clearAiResults: () => set({ aiResults: null }),
+  setSearchMode: (m) => set({ searchMode: m }),
+  setAiDownload: (p) => set({ aiDownload: p }),
+  setAiProgress: (p) => set({ aiProgress: p }),
   setError: (e) => set({ error: e }),
   setScanning: (s) => set({ scanning: s }),
   setHashing: (h) => set({ hashing: h }),

@@ -150,6 +150,15 @@ export function FilterPanel({ onClose }: { onClose: () => void }) {
             <option value="video">{t("filter.video")}</option>
           </select>
         </label>
+
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={query.hasFace === true}
+            onChange={(e) => set("hasFace", e.target.checked ? true : undefined)}
+          />
+          {t("filter.hasFace")}
+        </label>
       </div>
 
       <div className="filter-actions">

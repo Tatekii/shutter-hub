@@ -45,6 +45,7 @@ export interface PhotoQuery {
   colorLabel?: string;
   flag?: string;
   mediaType?: "photo" | "video";
+  hasFace?: boolean;
   albumId?: number;
   tagId?: number;
 }
@@ -140,4 +141,42 @@ export interface FacetDto {
   isoRange: [number | null, number | null];
   focalRange: [number | null, number | null];
   dateRange: [string | null, string | null];
+}
+
+export interface AiStatus {
+  clipReady: boolean;
+  faceReady: boolean;
+  embeddingsDone: number;
+  embeddingsTotal: number;
+  facesDone: number;
+  facesTotal: number;
+  busy: boolean;
+}
+
+export interface AiDownloadProgress {
+  file: string;
+  received: number;
+  total: number | null;
+  done: boolean;
+  error: string | null;
+}
+
+export interface AiJobProgress {
+  kind: "embeddings" | "faces";
+  processed: number;
+  total: number;
+  current: string;
+}
+
+export interface AiJobDone {
+  kind: string;
+  ok: boolean;
+  error: string | null;
+}
+
+export interface FaceDto {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }

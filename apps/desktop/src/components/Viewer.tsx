@@ -1,9 +1,10 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { openPath } from "@tauri-apps/plugin-opener";
-import { useEffect, useRef, useState } from "react";
-import { COLOR_HEX, formatBytes, formatDuration, getViewerPreview } from "../lib/api";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { COLOR_HEX, formatBytes, formatDuration, getViewerPreview, listFaces } from "../lib/api";
 import { useT } from "../lib/i18n";
 import { useApp } from "../lib/store";
+import type { FaceDto } from "../lib/types";
 
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 8;
@@ -34,7 +35,15 @@ export function Viewer() {
     baseX: number;
     baseY: number;
   } | null>(null);
+  const [faces, setFaces] = useState<FaceDto[]>([]);
+  const [imgRect, setImgRect] = useState<{
+    left: number;
+    top: number;
+    w: number;
+    h: number;
+  } | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   // 当前照片被筛选掉（如旗标筛选 + 看图内淘汰）且无邻居时自动退出
   useEffect(() => {
@@ -77,6 +86,45 @@ export function Viewer() {
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // 人脸框（若该照片已完成人脸扫描）
+  useEffect(() => {
+    if (!photo || photo.mediaType === "video") {
+      setFaces([]);
+      return;
+    }
+    let cancelled = false;
+    void listFaces(photo.id)
+      .then((f) => {
+        if (!cancelled) setFaces(f);
+      })
+      .catch(() => {
+        if (!cancelled) setFaces([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [photo?.id]);
+
+  // 测量图片在画布中的实际显示矩形（人脸框定位用）
+  useLayoutEffect(() => {
+    const img = imgRef.current;
+    const canvasEl = canvasRef.current;
+    if (!img || !canvasEl) {
+      setImgRect(null);
+      return;
+    }
+    const rect = img.getBoundingClientRect();
+    const base = canvasEl.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      setImgRect({
+        left: rect.left - base.left,
+        top: rect.top - base.top,
+        w: rect.width,
+        h: rect.height,
+      });
+    }
+  }, [url, natural, mode, zoom, pan, canvas, viewerId]);
 
   const toggleMode = () => {
     setMode((m) => (m === "zoom" ? "fit" : "zoom"));
@@ -223,6 +271,7 @@ export function Viewer() {
           <>
             {url && !failed && (
               <img
+                ref={imgRef}
                 className={`viewer-img ${mode === "zoom" ? "viewer-zoom" : ""}`}
                 src={url}
                 alt={photo.filename}
@@ -243,6 +292,19 @@ export function Viewer() {
                 }}
               />
             )}
+            {imgRect &&
+              faces.map((f, i) => (
+                <div
+                  key={i}
+                  className="face-box"
+                  style={{
+                    left: imgRect.left + f.x * imgRect.w,
+                    top: imgRect.top + f.y * imgRect.h,
+                    width: f.w * imgRect.w,
+                    height: f.h * imgRect.h,
+                  }}
+                />
+              ))}
             {!url && !failed && <div className="viewer-status">{t("viewer.loading")}</div>}
             {failed && <div className="viewer-status">{t("viewer.unsupported")}</div>}
           </>

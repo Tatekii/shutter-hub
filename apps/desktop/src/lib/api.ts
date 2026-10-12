@@ -1,10 +1,15 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
+  AiDownloadProgress,
+  AiJobDone,
+  AiJobProgress,
+  AiStatus,
   AlbumDto,
   CardPhotoDto,
   DupeGroup,
   FacetDto,
+  FaceDto,
   FolderDto,
   HashProgress,
   IngestProgress,
@@ -69,6 +74,14 @@ export const computeHashes = () => invoke<void>("compute_hashes");
 export const listDupes = () => invoke<DupeGroup[]>("list_dupes");
 export const listSimilar = () => invoke<SimilarPair[]>("list_similar");
 
+export const aiStatus = () => invoke<AiStatus>("ai_status");
+export const aiDownloadModels = () => invoke<void>("ai_download_models");
+export const aiComputeEmbeddings = () => invoke<void>("ai_compute_embeddings");
+export const aiDetectFaces = () => invoke<void>("ai_detect_faces");
+export const aiSearch = (query: string, limit?: number) =>
+  invoke<PhotoDto[]>("ai_search", { query, limit });
+export const listFaces = (photoId: number) => invoke<FaceDto[]>("list_faces", { photoId });
+
 export const thumbUrl = (thumbPath: string | null) =>
   thumbPath ? convertFileSrc(thumbPath) : null;
 
@@ -92,6 +105,11 @@ export const onIngestProgress = (h: (p: IngestProgress) => void) =>
   listenEvent("ingest://progress", h);
 export const onIngestDone = (h: (r: IngestResult) => void) =>
   listenEvent("ingest://done", h);
+
+export const onAiDownload = (h: (p: AiDownloadProgress) => void) =>
+  listenEvent("ai://download", h);
+export const onAiProgress = (h: (p: AiJobProgress) => void) => listenEvent("ai://progress", h);
+export const onAiDone = (h: (p: AiJobDone) => void) => listenEvent("ai://done", h);
 
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

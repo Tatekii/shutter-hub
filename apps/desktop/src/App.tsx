@@ -16,7 +16,6 @@ import { useT } from "./lib/i18n";
 import { useApp } from "./lib/store";
 
 function App() {
-  const t = useT();
   const init = useApp((s) => s.init);
   const loading = useApp((s) => s.loading);
   const error = useApp((s) => s.error);
@@ -33,6 +32,10 @@ function App() {
   const openVolume = useApp((s) => s.openVolume);
   const refreshVolumes = useApp((s) => s.refreshVolumes);
   const addFolder = useApp((s) => s.addFolder);
+  const aiResults = useApp((s) => s.aiResults);
+  const clearAiResults = useApp((s) => s.clearAiResults);
+  const aiSearching = useApp((s) => s.aiSearching);
+  const t = useT();
   const [showHelp, setShowHelp] = useState(false);
   const [showVolumePicker, setShowVolumePicker] = useState(false);
 
@@ -56,6 +59,16 @@ function App() {
       api.onIngestProgress(setIngestProgress),
       api.onIngestDone(() => {
         useApp.getState().setIngestProgress(null);
+      }),
+      api.onAiDownload((p) => {
+        useApp.getState().setAiDownload(p);
+        if (p.done) void useApp.getState().refreshAiStatus();
+      }),
+      api.onAiProgress(useApp.getState().setAiProgress),
+      api.onAiDone(() => {
+        const s = useApp.getState();
+        s.setAiProgress(null);
+        void s.refreshAiStatus();
       }),
     ];
     const all = Promise.all(unsubscribers);
@@ -156,6 +169,22 @@ function App() {
   const mainContent = () => {
     if (loading) return null;
     if (view.kind === "dupes") return <DupeView />;
+    if (aiResults) {
+      return (
+        <>
+          <div className="ai-results-banner">
+            <span>{t("app.aiResults", { n: aiResults.length })}</span>
+            <button className="chip-action" onClick={clearAiResults}>
+              {t("app.clearAiResults")}
+            </button>
+          </div>
+          {aiResults.length > 0 && <PhotoGrid photos={aiResults} />}
+        </>
+      );
+    }
+    if (aiSearching && !aiResults) {
+      return <div className="ai-searching">{t("ai.busy")}</div>;
+    }
     if (photos.length === 0) {
       return <EmptyState onAdd={() => void addFolder()} />;
     }
