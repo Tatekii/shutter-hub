@@ -8,7 +8,7 @@ Shutter Hub — Tauri 2 desktop app for local photo asset management. pnpm works
 - `packages/` — reserved, empty (listed in pnpm workspace)
 - Frontend: `apps/desktop/src` — `lib/api.ts` wraps every IPC `invoke`, `lib/store.ts` is the Zustand store
 - Global keyboard shortcuts live in `App.tsx` `onKey`, which early-returns while the viewer is open — viewer-only keys (arrows, rating/flag auto-advance, Z zoom toggle) are handled inside `components/Viewer.tsx`
-- Rust: `apps/desktop/src-tauri/src` — `db.rs`, `indexer.rs`, `metadata.rs`, `thumbs.rs`, `preview.rs`, `video.rs`, `ai.rs`, `xmp.rs`, `volumes.rs`, `commands/`
+- Rust: `apps/desktop/src-tauri/src` — `db.rs`, `indexer.rs`, `metadata.rs`, `thumbs.rs`, `preview.rs`, `video.rs`, `export.rs`, `collage.rs`, `ai.rs`, `xmp.rs`, `volumes.rs`, `commands/`
 
 ## Commands
 
@@ -29,6 +29,7 @@ Shutter Hub — Tauri 2 desktop app for local photo asset management. pnpm works
 - Long operations (scan/ingest/hash/AI) emit progress events (`Emitter` backend + `listenEvent` in `api.ts`). Follow that pattern for new background work.
 - ffmpeg/ffprobe are optional system binaries (`video.rs`, availability cached in `OnceLock`); video indexing, dedupe and rating must work without them — thumbnails/duration just stay empty.
 - AI (`ai.rs`): models download on demand to `<app_data_dir>/models` (~180MB); features must degrade gracefully when files are missing. ort `Session`s are not `Sync` and are deliberately loaded per call inside `spawn_blocking` (no caching). All AI jobs share one `AppState.ai_busy` single-flight lock.
+- Export/collage (`export.rs`, `collage.rs`) reuse the preview pipeline (`preview::ensure`) for decodable full-size input — don't decode originals directly. Filenames go through `export::unique_path` (collision-safe). Live Photo pairing (same-dir same-stem image+video) happens in `indexer::detect_live_pairs`; paired motion clips are intentionally NOT indexed as standalone videos.
 
 ## Testing
 
