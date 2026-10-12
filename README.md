@@ -9,8 +9,9 @@ Shutter Hub 是一个面向摄影爱好者的本地素材管理器：照片（�
 ### 素材管理
 
 - 📁 添加本地文件夹，递归扫描照片与 RAW（NEF/CR2/CR3/ARW/RAF/DNG/ORF/RW2…）
+- 📹 视频素材支持（MP4/MOV/MKV…）：随照片一起索引、评分、去重
 - 🗄️ SQLite 本地索引（EXIF：相机、镜头、焦距、光圈、快门、ISO、拍摄时间）
-- 🖼️ 缩略图自动生成：RAW 优先抽取相机内嵌 JPEG 预览，零解码等待
+- 🖼️ 缩略图自动生成：RAW 优先抽取相机内嵌 JPEG 预览，零解码等待；视频经 ffmpeg 抽帧（可选依赖，缺失时优雅降级）
 - 🧭 虚拟滚动网格浏览，按拍摄时间排序，万张规模流畅
 - 🔁 增量索引：文件未变化自动跳过；文件夹可重新扫描
 - 🗑️ 移除文件夹只删索引，绝不碰你的文件
@@ -41,11 +42,16 @@ Shutter Hub 是一个面向摄影爱好者的本地素材管理器：照片（�
 - 🔁 完全重复：blake3 内容哈希分组
 - 👯 相似照片：dHash 感知哈希发现连拍近似图
 
-## 🗺️ 路线图
+### 本地 AI（ONNX，可选）
 
-- 人脸识别、AI 语义搜索（本地 ONNX）
-- 视频素材支持
-- 多语言界面（i18n）
+- 🧠 AI 语义搜索：CLIP 向量让「夕阳下的海边」这类描述直达照片，完全本地推理
+- 🙂 人脸识别：UltraFace 检测人脸框，视图内叠加显示，支持「有人脸」筛选
+- ⬇️ 模型按需下载（约 180 MB，一次性），下载完成后全程离线；未下载时功能自动隐藏，不影响其他功能
+- 🎞️ 视频取缩略帧参与语义索引
+
+### 多语言
+
+- 🌐 中文 / English 界面，可随时切换（右上角 EN / 中），自动跟随系统语言
 
 ## 🧱 技术栈
 
@@ -53,6 +59,8 @@ Shutter Hub 是一个面向摄影爱好者的本地素材管理器：照片（�
 | --- | --- |
 | 外壳 | [Tauri 2](https://tauri.app)（macOS / Windows / Linux） |
 | 后端 | Rust（rusqlite / kamadak-exif / image / rayon / walkdir / blake3 / sysinfo） |
+| 视频 | ffmpeg / ffprobe（可选）：抽帧缩略图与时长探测，缺失时自动降级 |
+| 本地 AI | ONNX Runtime（ort）：CLIP ViT-B/32（语义向量）+ UltraFace RFB-320（人脸检测） |
 | 前端 | React 19 + TypeScript + Vite + TanStack Virtual + Zustand |
 | 数据库 | SQLite（WAL 模式，索引可随时重建） |
 
@@ -72,9 +80,11 @@ shutter_hub/
 │           │   ├── metadata.rs  # EXIF 解析
 │           │   ├── thumbs.rs    # 缩略图 + dHash
 │           │   ├── preview.rs   # 看图全尺寸预览生成
+│           │   ├── video.rs     # 视频探测 / 抽帧（ffmpeg 可选）
+│           │   ├── ai.rs        # 本地 AI：CLIP 向量 + UltraFace 人脸
 │           │   ├── xmp.rs       # XMP sidecar 读写
 │           │   ├── volumes.rs   # 存储卡检测 / 导入 / 弹出
-│           │   └── commands/    # Tauri IPC（library / organize / dupes）
+│           │   └── commands/    # Tauri IPC（library / organize / dupes / ai）
 │           └── tests/           # 后端集成测试
 ├── .github/workflows/    # 三平台打包 + 测试 CI
 └── packages/             # 共享包（规划中）
@@ -82,7 +92,7 @@ shutter_hub/
 
 ## 🚀 开发
 
-环境要求：Node.js ≥ 20、pnpm ≥ 10、Rust ≥ 1.77（stable）、[Tauri 平台依赖](https://tauri.app/start/prerequisites/)
+环境要求：Node.js ≥ 20、pnpm ≥ 10、Rust ≥ 1.85（stable，edition 2024）、[Tauri 平台依赖](https://tauri.app/start/prerequisites/)。视频缩略图可选安装 ffmpeg；AI 功能首次使用会引导下载模型。
 
 ```bash
 pnpm install        # 安装依赖

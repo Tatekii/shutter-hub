@@ -8,7 +8,7 @@ Shutter Hub — Tauri 2 desktop app for local photo asset management. pnpm works
 - `packages/` — reserved, empty (listed in pnpm workspace)
 - Frontend: `apps/desktop/src` — `lib/api.ts` wraps every IPC `invoke`, `lib/store.ts` is the Zustand store
 - Global keyboard shortcuts live in `App.tsx` `onKey`, which early-returns while the viewer is open — viewer-only keys (arrows, rating/flag auto-advance, Z zoom toggle) are handled inside `components/Viewer.tsx`
-- Rust: `apps/desktop/src-tauri/src` — `db.rs`, `indexer.rs`, `metadata.rs`, `thumbs.rs`, `preview.rs`, `xmp.rs`, `volumes.rs`, `commands/`
+- Rust: `apps/desktop/src-tauri/src` — `db.rs`, `indexer.rs`, `metadata.rs`, `thumbs.rs`, `preview.rs`, `video.rs`, `ai.rs`, `xmp.rs`, `volumes.rs`, `commands/`
 
 ## Commands
 
@@ -26,14 +26,17 @@ Shutter Hub — Tauri 2 desktop app for local photo asset management. pnpm works
 - DB: SQLite (WAL) at `<app_data_dir>/shutter_hub.db`. Schema = ordered SQL batches in `db.rs` `MIGRATIONS` (batch i = user_version i→i+1). Append new batches; never edit old ones.
 - Filesystem is the source of truth; the DB is a rebuildable index. Ratings/colors/flags are also written to XMP sidecars (`xmp.rs`) — don't make metadata DB-only.
 - Thumbnails: `<app_cache_dir>/thumbs/<photo_id>.jpg`; viewer previews: `<app_cache_dir>/previews/<photo_id>.jpg` (lazy-generated, reuse while source mtime unchanged). Both served via `convertFileSrc` (asset protocol); `tauri.conf.json` scopes it to `$APPCACHE/**` — serving new paths requires extending that scope.
-- Long operations (scan/ingest/hash) emit progress events (`Emitter` backend + `listenEvent` in `api.ts`). Follow that pattern for new background work.
+- Long operations (scan/ingest/hash/AI) emit progress events (`Emitter` backend + `listenEvent` in `api.ts`). Follow that pattern for new background work.
+- ffmpeg/ffprobe are optional system binaries (`video.rs`, availability cached in `OnceLock`); video indexing, dedupe and rating must work without them — thumbnails/duration just stay empty.
+- AI (`ai.rs`): models download on demand to `<app_data_dir>/models` (~180MB); features must degrade gracefully when files are missing. ort `Session`s are not `Sync` and are deliberately loaded per call inside `spawn_blocking` (no caching). All AI jobs share one `AppState.ai_busy` single-flight lock.
 
 ## Testing
 
 - `tests/backend_integration.rs` generates its own JPEG fixtures in temp dirs; no external fixtures or services required
 - A global `Mutex` serializes the integration tests (shared WAL DB / temp-dir interference) — don't remove it
+- `ai::tests::ai_models_download_and_infer` is `#[ignore]`d (downloads ~180MB from HuggingFace); run manually with `cargo test -- --ignored` when touching the ONNX pipeline
 
 ## Misc
 
-- Cargo `edition = "2024"` requires Rust ≥ 1.85 (README's "Rust ≥ 1.77" is stale)
+- Cargo `edition = "2024"` requires Rust ≥ 1.85; `ort` downloads ONNX Runtime binaries at build time (needs network on first build)
 - Release: pushing a `v*` tag triggers `.github/workflows/release.yml` (3-platform tauri-action, draft release). Updater endpoint and `TAURI_SIGNING_PRIVATE_KEY*` secrets point at `Tatekii/shutter-hub`.
