@@ -32,6 +32,9 @@ export function Inspector() {
   if (photo.mediaType === "video" && photo.durationMs != null) {
     rows.push([t("inspector.rowDuration"), formatDuration(photo.durationMs)]);
   }
+  if (photo.liveMotion) {
+    rows.push([t("inspector.rowLive"), photo.liveMotion]);
+  }
   rows.push(
     [t("inspector.rowSize"), formatBytes(photo.size)],
     [

@@ -338,6 +338,15 @@ export function Viewer() {
             <span className="viewer-flag flag-reject">{t("viewer.reject")}</span>
           )}
         </span>
+        {photo.liveMotion && (
+          <button
+            className="btn"
+            title={photo.liveMotion}
+            onClick={() => void openPath(photo.liveMotion!)}
+          >
+            ⚡ {t("viewer.playLive")}
+          </button>
+        )}
         <button
           className={`btn ${autoAdvance ? "btn-active" : ""}`}
           title={t("viewer.autoAdvanceTitle")}

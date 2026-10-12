@@ -104,6 +104,7 @@ function PhotoCard({ photo }: { photo: PhotoDto }) {
             ▶ {photo.durationMs != null ? formatDuration(photo.durationMs) : t("filter.video")}
           </span>
         )}
+        {photo.liveMotion && <span className="live-badge">LIVE</span>}
         {photo.flag && (
           <span className={`flag-badge flag-${photo.flag}`}>
             {photo.flag === "pick" ? "✓" : "✕"}

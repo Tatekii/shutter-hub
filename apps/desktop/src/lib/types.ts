@@ -27,6 +27,7 @@ export interface PhotoDto {
   flag: string;
   mediaType: "photo" | "video";
   durationMs: number | null;
+  liveMotion: string | null;
 }
 
 export interface PhotoQuery {

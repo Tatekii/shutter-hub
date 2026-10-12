@@ -168,6 +168,7 @@ const STRINGS: Record<string, { zh: string; en: string }> = {
   "inspector.rowPath": { zh: "路径", en: "Path" },
   "inspector.rowType": { zh: "类型", en: "Type" },
   "inspector.rowDuration": { zh: "时长", en: "Duration" },
+  "inspector.rowLive": { zh: "实况", en: "Live photo" },
   "inspector.rowFaces": { zh: "人脸", en: "Faces" },
   "inspector.unknown": { zh: "未知", en: "Unknown" },
 
@@ -281,6 +282,7 @@ const STRINGS: Record<string, { zh: string; en: string }> = {
   "viewer.reject": { zh: "✕ 淘汰", en: "✕ Reject" },
   "viewer.rate": { zh: "评分 {n}", en: "Rating {n}" },
   "viewer.play": { zh: "▶ 在系统播放器中打开", en: "▶ Open in system player" },
+  "viewer.playLive": { zh: "播放实况", en: "Play motion" },
   "viewer.videoHint": { zh: "视频不支持内置播放", en: "In-app video playback is not supported" },
 
   // app
