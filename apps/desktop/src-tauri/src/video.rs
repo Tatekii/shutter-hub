@@ -115,6 +115,28 @@ fn parse_creation_time(raw: &str) -> Option<String> {
     }
 }
 
+/// 用 ffmpeg 将视频转为 GIF（12fps / 480px 宽，调色板优化）。返回是否成功。
+pub fn make_gif(src: &Path, out: &Path) -> bool {
+    if !ffmpeg_available() {
+        return false;
+    }
+    let filter = "fps=12,scale=480:-2:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse";
+    let status = Command::new("ffmpeg")
+        .args(["-v", "error", "-i"])
+        .arg(src)
+        .args(["-vf", filter, "-loop", "0", "-y"])
+        .arg(out)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
+    if matches!(status, Ok(s) if s.success()) && out.exists() {
+        true
+    } else {
+        let _ = std::fs::remove_file(out);
+        false
+    }
+}
+
 /// 用 ffmpeg 抽取一帧作为缩略图。返回是否成功。
 pub fn make_thumb(src: &Path, out: &PathBuf, max_dim: u32) -> bool {
     if !ffmpeg_available() {

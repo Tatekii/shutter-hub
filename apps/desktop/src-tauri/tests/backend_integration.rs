@@ -515,6 +515,57 @@ fn develop_edit_roundtrip_and_export_applies() {
     std::fs::remove_dir_all(ctx.dir.parent().unwrap()).ok();
 }
 
+#[test]
+fn live_motion_export_copy_and_errors() {
+    let _guard = LOCK.lock().unwrap();
+    let ctx = setup("livemotion");
+    let out_dir = ctx.dir.parent().unwrap().join("motion_out");
+
+    make_jpeg(&ctx.dir.join("IMG_0300.jpg"), 160, 160, 51);
+    std::fs::write(ctx.dir.join("IMG_0300.mov"), b"fake motion bytes").unwrap();
+    scan(&ctx);
+
+    let conn = db::open_db(&ctx.db).unwrap();
+    let id: i64 = conn
+        .query_row("SELECT id FROM photos WHERE filename = 'IMG_0300.jpg'", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+
+    let state = setup_state(&ctx);
+    let copied = desktop_lib::commands::export_live_motion_inner(
+        &state,
+        id,
+        &out_dir.to_string_lossy(),
+        "copy",
+    )
+    .unwrap();
+    assert!(copied.ends_with("IMG_0300.mov"));
+    assert_eq!(
+        std::fs::read(&copied).unwrap(),
+        b"fake motion bytes".to_vec()
+    );
+
+    // 无实况配对的照片
+    make_jpeg(&ctx.dir.join("IMG_0301.jpg"), 160, 160, 52);
+    scan(&ctx);
+    let plain_id: i64 = conn
+        .query_row("SELECT id FROM photos WHERE filename = 'IMG_0301.jpg'", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    let err = desktop_lib::commands::export_live_motion_inner(
+        &state,
+        plain_id,
+        &out_dir.to_string_lossy(),
+        "copy",
+    )
+    .unwrap_err();
+    assert!(err.contains("实况"), "clear error: {err}");
+
+    std::fs::remove_dir_all(ctx.dir.parent().unwrap()).ok();
+}
+
 fn touch(path: &Path) {
     let bytes = std::fs::read(path).unwrap();
     std::thread::sleep(std::time::Duration::from_millis(5));

@@ -1,8 +1,9 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { openPath } from "@tauri-apps/plugin-opener";
+import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   COLOR_HEX,
+  exportLiveMotion,
   formatBytes,
   formatDuration,
   getEdit,
@@ -499,13 +500,31 @@ export function Viewer() {
           )}
         </span>
         {photo.liveMotion && (
-          <button
-            className="btn"
-            title={photo.liveMotion}
-            onClick={() => void openPath(photo.liveMotion!)}
-          >
-            ⚡ {t("viewer.playLive")}
-          </button>
+          <>
+            <button
+              className="btn"
+              title={photo.liveMotion}
+              onClick={() => void openPath(photo.liveMotion!)}
+            >
+              ⚡ {t("viewer.playLive")}
+            </button>
+            <button
+              className="btn"
+              title={t("viewer.exportGif")}
+              onClick={() => {
+                const dir = localStorage.getItem("shutter_hub.exportDir");
+                if (!dir) {
+                  useApp.getState().setError(t("viewer.gifNeedDir"));
+                  return;
+                }
+                void exportLiveMotion(photo.id, dir, "gif")
+                  .then((path) => void revealItemInDir(path))
+                  .catch((e) => useApp.getState().setError(String(e)));
+              }}
+            >
+              GIF
+            </button>
+          </>
         )}
         {photo.mediaType !== "video" && (
           <button

@@ -93,6 +93,7 @@ pub fn run() {
             commands::ai_search,
             commands::list_faces,
             commands::export_photos,
+            commands::export_live_motion,
             commands::render_collage,
             commands::get_edit,
             commands::set_edit,

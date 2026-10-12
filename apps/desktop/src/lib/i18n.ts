@@ -284,6 +284,11 @@ const STRINGS: Record<string, { zh: string; en: string }> = {
   "viewer.rate": { zh: "评分 {n}", en: "Rating {n}" },
   "viewer.play": { zh: "▶ 在系统播放器中打开", en: "▶ Open in system player" },
   "viewer.playLive": { zh: "播放实况", en: "Play motion" },
+  "viewer.exportGif": { zh: "导出 GIF 动图", en: "Export GIF" },
+  "viewer.gifNeedDir": {
+    zh: "请先在「导出」中选过一次目标文件夹",
+    en: "Choose an export folder in Export first",
+  },
   "viewer.develop": { zh: "调色", en: "Develop" },
   "viewer.videoHint": { zh: "视频不支持内置播放", en: "In-app video playback is not supported" },
 

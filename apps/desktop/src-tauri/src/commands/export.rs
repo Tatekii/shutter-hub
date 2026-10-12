@@ -98,6 +98,64 @@ pub fn export_photos_inner(
     Ok(result)
 }
 
+/// 导出 Live 图的运动片段：GIF 动图（需 ffmpeg）或原样拷贝。
+#[tauri::command]
+pub async fn export_live_motion(
+    state: State<'_, AppState>,
+    photo_id: i64,
+    target_dir: String,
+    format: String,
+) -> Result<String, String> {
+    let state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        export_live_motion_inner(&state, photo_id, &target_dir, &format)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+pub fn export_live_motion_inner(
+    state: &AppState,
+    photo_id: i64,
+    target_dir: &str,
+    format: &str,
+) -> Result<String, String> {
+    let conn = db::open_db(&state.db_path).map_err(to_str)?;
+    let motion: Option<String> = conn
+        .query_row(
+            "SELECT live_motion FROM photos WHERE id = ?1",
+            [photo_id],
+            |r| r.get(0),
+        )
+        .map_err(to_str)?;
+    let motion = motion.ok_or_else(|| "该照片没有配对实况片段".to_string())?;
+    let motion = PathBuf::from(motion);
+    if !motion.exists() {
+        return Err("实况片段文件不存在（可能已被移动）".to_string());
+    }
+
+    std::fs::create_dir_all(target_dir).map_err(to_str)?;
+    let target = Path::new(target_dir);
+    let stem = export::file_stem(&motion);
+
+    if format == "copy" {
+        let ext = motion
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("mov")
+            .to_ascii_lowercase();
+        let out = export::copy_file(&motion, target, &stem, &ext).map_err(|e| format!("{e:#}"))?;
+        return Ok(out.to_string_lossy().into_owned());
+    }
+
+    let out = export::unique_path(target, &stem, "gif");
+    if crate::video::make_gif(&motion, &out) {
+        Ok(out.to_string_lossy().into_owned())
+    } else {
+        Err("导出 GIF 需要安装 ffmpeg（如 brew install ffmpeg）".to_string())
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn export_one(
     state: &AppState,

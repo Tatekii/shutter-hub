@@ -96,6 +96,8 @@ export const renderCollage = (req: CollageRequest) =>
 export const getEdit = (id: number) => invoke<Adjustments>("get_edit", { id });
 export const setEdit = (id: number, adj: Adjustments) =>
   invoke<void>("set_edit", { id, adj });
+export const exportLiveMotion = (photoId: number, targetDir: string, format: "gif" | "copy") =>
+  invoke<string>("export_live_motion", { photoId, targetDir, format });
 
 export const thumbUrl = (thumbPath: string | null) =>
   thumbPath ? convertFileSrc(thumbPath) : null;
