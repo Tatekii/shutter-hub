@@ -227,6 +227,10 @@ const STRINGS: Record<string, { zh: string; en: string }> = {
 
   // app
   "app.volumeDetected": { zh: "💾 检测到存储设备（{n}）", en: "💾 Storage devices detected ({n})" },
+  "app.browserMode": {
+    zh: "浏览器预览模式：Tauri 后端不可用，仅可调试界面；完整功能请用 pnpm tauri dev 启动",
+    en: "Browser preview: Tauri backend unavailable. UI-only debugging. Run pnpm tauri dev for full functionality.",
+  },
   "app.aiResults": { zh: "AI 语义搜索结果 · {n} 张", en: "AI semantic search results · {n} photos" },
   "app.clearAiResults": { zh: "清除 AI 结果", en: "Clear AI results" },
 

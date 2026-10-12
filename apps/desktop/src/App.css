@@ -330,6 +330,12 @@ body {
   word-break: break-all;
 }
 
+.error-banner.browser-mode {
+  background: #1d2a3a;
+  color: #b9cff0;
+  border-bottom-color: #2c4160;
+}
+
 .app-footer {
   flex: none;
   background: var(--bg-panel);

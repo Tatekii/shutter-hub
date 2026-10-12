@@ -167,6 +167,11 @@ export const useApp = create<AppState>((set, get) => ({
   searchMode: "keyword",
 
   init: async () => {
+    // 纯浏览器调试（pnpm dev）：无 Tauri IPC，仅渲染 UI
+    if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) {
+      set({ loading: false });
+      return;
+    }
     try {
       const [folders, albums, tags, stats, facets, photos, volumes, aiStatus] =
         await Promise.all([

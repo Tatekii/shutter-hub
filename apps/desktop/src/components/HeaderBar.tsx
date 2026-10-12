@@ -62,6 +62,10 @@ export function HeaderBar({ onShowHelp }: { onShowHelp: () => void }) {
             {searchMode === "ai" ? "AI" : "⌕"}
           </button>
           <input
+            id="library-search"
+            name="search"
+            type="search"
+            aria-label={t("header.searchPlaceholder")}
             value={search}
             placeholder={t("header.searchPlaceholder")}
             onChange={(e) => {

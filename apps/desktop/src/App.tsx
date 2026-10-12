@@ -15,6 +15,10 @@ import * as api from "./lib/api";
 import { useT } from "./lib/i18n";
 import { useApp } from "./lib/store";
 
+/// 纯浏览器调试（pnpm dev）时没有 Tauri IPC，仅渲染 UI。
+export const IS_TAURI =
+  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
 function App() {
   const init = useApp((s) => s.init);
   const loading = useApp((s) => s.loading);
@@ -44,6 +48,7 @@ function App() {
   }, [init]);
 
   useEffect(() => {
+    if (!IS_TAURI) return;
     const unsubscribers = [
       api.onScanProgress(setScanning),
       api.onScanDone(() => {
@@ -71,13 +76,19 @@ function App() {
         void s.refreshAiStatus();
       }),
     ];
-    const all = Promise.all(unsubscribers);
+    // allSettled：任一监听注册失败（如窗口销毁）不产生未处理 rejection
+    const all = Promise.allSettled(unsubscribers);
     return () => {
-      void all.then((fns) => fns.forEach((fn) => fn()));
+      void all.then((results) => {
+        for (const r of results) {
+          if (r.status === "fulfilled") r.value();
+        }
+      });
     };
   }, [setScanning, setError, setHashing, setIngestProgress]);
 
   useEffect(() => {
+    if (!IS_TAURI) return;
     const timer = setInterval(() => void refreshVolumes(), 15000);
     return () => clearInterval(timer);
   }, [refreshVolumes]);
@@ -198,6 +209,11 @@ function App() {
       <div className="app-body">
         <Sidebar />
         <main className="app-main">
+          {!IS_TAURI && (
+            <div className="error-banner browser-mode">
+              <span>{t("app.browserMode")}</span>
+            </div>
+          )}
           {error && (
             <div className="error-banner">
               <span>{error}</span>
