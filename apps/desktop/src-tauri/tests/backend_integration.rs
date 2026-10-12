@@ -71,7 +71,7 @@ fn build_query_sql(q: PhotoQuery) -> (String, Vec<Box<dyn rusqlite::ToSql>>) {
     let mut sql = String::from(
         "SELECT id, folder_id, path, filename, size, width, height, camera_make, camera_model,
          lens_model, focal_length, aperture, shutter_speed, iso, taken_at, has_thumb,
-         rating, color_label, flag, media_type, duration_ms, live_motion FROM photos",
+         rating, color_label, flag, media_type, duration_ms, live_motion, edit FROM photos",
     );
     let mut clauses: Vec<String> = Vec::new();
     let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
@@ -438,6 +438,79 @@ fn live_photo_pairing_hides_motion_clip() {
     let stats2 = scan(&ctx);
     assert_eq!(stats2.added, 0);
     assert_eq!(stats2.skipped + stats2.updated, 3);
+
+    std::fs::remove_dir_all(ctx.dir.parent().unwrap()).ok();
+}
+
+#[test]
+fn develop_edit_roundtrip_and_export_applies() {
+    let _guard = LOCK.lock().unwrap();
+    let ctx = setup("develop");
+    let out_dir = ctx.dir.parent().unwrap().join("developed");
+
+    make_jpeg(&ctx.dir.join("IMG_0200.jpg"), 400, 300, 41);
+    scan(&ctx);
+
+    let conn = db::open_db(&ctx.db).unwrap();
+    let (id, path): (i64, String) = conn
+        .query_row("SELECT id, path FROM photos", [], |r| Ok((r.get(0)?, r.get(1)?)))
+        .unwrap();
+
+    let state = setup_state(&ctx);
+    let adj = desktop_lib::develop::Adjustments {
+        exposure: 1.0,
+        saturation: -100.0,
+        ..Default::default()
+    };
+    desktop_lib::commands::set_edit_inner(&state, id, &adj).unwrap();
+
+    // DB 回读
+    let loaded = desktop_lib::commands::get_edit_inner(&state, id).unwrap();
+    assert_eq!(loaded.exposure, 1.0);
+    assert_eq!(loaded.saturation, -100.0);
+
+    // XMP sidecar 写入 crs 字段
+    let sidecar = std::fs::read_to_string(xmp::sidecar_path_for(std::path::Path::new(&path)))
+        .unwrap();
+    assert!(sidecar.contains("Exposure2012"), "crs written: {sidecar}");
+
+    // 调色预览生成
+    let preview = desktop_lib::commands::get_viewer_preview_inner(&state, id)
+        .unwrap()
+        .expect("edit preview");
+    assert!(preview.contains("_edit_"), "edited preview path: {preview}");
+
+    // 导出应用调色（曝光 +1 后平均亮度显著高于原图）
+    let req = desktop_lib::models::ExportRequest {
+        photo_ids: vec![id],
+        target_dir: out_dir.to_string_lossy().into_owned(),
+        format: "jpeg".into(),
+        quality: 90,
+        max_dimension: None,
+        filename_suffix: "".into(),
+    };
+    let result =
+        desktop_lib::commands::export_photos_inner(&state, &req, |_| {}).unwrap();
+    assert_eq!(result.exported, 1);
+
+    let original = image::open(&path).unwrap().to_rgb8();
+    let exported = image::open(out_dir.join("IMG_0200.jpg")).unwrap().to_rgb8();
+    let avg = |img: &image::RgbImage| -> f64 {
+        img.pixels().map(|p| p[0] as f64).sum::<f64>() / (img.width() * img.height()) as f64
+    };
+    assert!(
+        avg(&exported) > avg(&original) + 10.0,
+        "exposure applied: {} vs {}",
+        avg(&exported),
+        avg(&original)
+    );
+
+    // 重置后预览回到非调色路径
+    desktop_lib::commands::set_edit_inner(&state, id, &Default::default()).unwrap();
+    let preview2 = desktop_lib::commands::get_viewer_preview_inner(&state, id)
+        .unwrap()
+        .unwrap();
+    assert!(!preview2.contains("_edit_"), "reset: {preview2}");
 
     std::fs::remove_dir_all(ctx.dir.parent().unwrap()).ok();
 }

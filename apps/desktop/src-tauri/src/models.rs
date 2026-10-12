@@ -36,6 +36,8 @@ pub struct PhotoDto {
     pub duration_ms: Option<i64>,
     /// Live 图的运动片段（同目录同名 MOV/MP4）绝对路径
     pub live_motion: Option<String>,
+    /// 是否有非破坏性调色参数
+    pub has_edit: bool,
 }
 
 #[derive(Debug, Default, Deserialize)]

@@ -2,6 +2,7 @@ pub mod ai;
 pub mod collage;
 pub mod commands;
 pub mod db;
+pub mod develop;
 pub mod export;
 pub mod indexer;
 pub mod metadata;
@@ -93,6 +94,8 @@ pub fn run() {
             commands::list_faces,
             commands::export_photos,
             commands::render_collage,
+            commands::get_edit,
+            commands::set_edit,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

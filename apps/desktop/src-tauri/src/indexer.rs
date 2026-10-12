@@ -155,9 +155,9 @@ fn index_one(
 
     let live_motion_str = live_motion.map(|p| p.to_string_lossy().into_owned());
 
-    let existing: Option<(i64, i64, i64, i64, String, String, Option<String>)> = conn
+    let existing: Option<(i64, i64, i64, i64, String, String, Option<String>, Option<String>)> = conn
         .query_row(
-            "SELECT id, size, mtime_ms, rating, color_label, flag, live_motion FROM photos WHERE path = ?1",
+            "SELECT id, size, mtime_ms, rating, color_label, flag, live_motion, edit FROM photos WHERE path = ?1",
             rusqlite::params![path_str],
             |row| {
                 Ok((
@@ -168,6 +168,7 @@ fn index_one(
                     row.get(4)?,
                     row.get(5)?,
                     row.get(6)?,
+                    row.get(7)?,
                 ))
             },
         )
@@ -197,8 +198,16 @@ fn index_one(
     };
     let sidecar = xmp::read(path);
 
-    let outcome = if let Some((id, old_size, old_mtime, old_rating, old_label, old_flag, old_live)) =
-        existing
+    let outcome = if let Some((
+        id,
+        old_size,
+        old_mtime,
+        old_rating,
+        old_label,
+        old_flag,
+        old_live,
+        old_edit,
+    )) = existing
     {
         if old_size == size && old_mtime == mtime_ms && old_live == live_motion_str {
             IndexOutcome::Skipped
@@ -215,14 +224,16 @@ fn index_one(
                 .as_ref()
                 .and_then(|s| s.flag.clone())
                 .unwrap_or(old_flag);
+            // sidcar 有 crs 调色字段则同步（Lightroom 侧编辑可回流）
+            let edit = sidecar_adjustments(&sidecar).unwrap_or(old_edit.unwrap_or_default());
 
             conn.execute(
                 "UPDATE photos SET size = ?1, mtime_ms = ?2, width = ?3, height = ?4,
                  camera_make = ?5, camera_model = ?6, lens_model = ?7, focal_length = ?8,
                  aperture = ?9, shutter_speed = ?10, iso = ?11, taken_at = ?12,
                  rating = ?13, color_label = ?14, flag = ?15,
-                 media_type = ?16, duration_ms = ?17, live_motion = ?18,
-                 indexed_at = datetime('now') WHERE id = ?19",
+                 media_type = ?16, duration_ms = ?17, live_motion = ?18, edit = ?19,
+                 indexed_at = datetime('now') WHERE id = ?20",
                 rusqlite::params![
                     size,
                     mtime_ms,
@@ -242,6 +253,7 @@ fn index_one(
                     media_type,
                     video_info.duration_ms,
                     live_motion_str,
+                    edit,
                     id
                 ],
             )?;
@@ -257,12 +269,13 @@ fn index_one(
             .as_ref()
             .and_then(|s| s.flag.clone())
             .unwrap_or_default();
+        let edit = sidecar_adjustments(&sidecar).unwrap_or_default();
 
         conn.execute(
             "INSERT INTO photos (folder_id, path, filename, size, mtime_ms, width, height,
              camera_make, camera_model, lens_model, focal_length, aperture, shutter_speed,
-             iso, taken_at, rating, color_label, flag, media_type, duration_ms, live_motion)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
+             iso, taken_at, rating, color_label, flag, media_type, duration_ms, live_motion, edit)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
             rusqlite::params![
                 folder_id,
                 path_str,
@@ -285,6 +298,7 @@ fn index_one(
                 media_type,
                 video_info.duration_ms,
                 live_motion_str,
+                edit,
             ],
         )?;
         IndexOutcome::Added(conn.last_insert_rowid())
@@ -346,6 +360,16 @@ pub fn detect_live_pairs(
         }
     }
     (pairs, motions)
+}
+
+/// 从 sidecar 提取调色参数并序列化（identity 存空串）。
+fn sidecar_adjustments(sidecar: &Option<xmp::SidecarMeta>) -> Option<String> {
+    let adj = sidecar.as_ref().and_then(|s| s.develop.clone())?;
+    if adj.is_identity() {
+        Some(String::new())
+    } else {
+        Some(adj.to_json())
+    }
 }
 
 fn collect_images(root: &Path) -> Vec<std::path::PathBuf> {

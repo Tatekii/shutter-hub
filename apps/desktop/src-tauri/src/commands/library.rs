@@ -10,7 +10,7 @@ use tauri_plugin_dialog::DialogExt;
 
 pub(crate) const PHOTO_COLUMNS: &str = "id, folder_id, path, filename, size, width, height, camera_make,
     camera_model, lens_model, focal_length, aperture, shutter_speed, iso, taken_at, has_thumb,
-    rating, color_label, flag, media_type, duration_ms, live_motion";
+    rating, color_label, flag, media_type, duration_ms, live_motion, edit";
 
 #[tauri::command]
 pub async fn add_folder(
@@ -113,20 +113,82 @@ pub async fn get_viewer_preview(
         .map_err(|e| e.to_string())?
 }
 
-/// 返回看图模式用的全尺寸预览路径（懒生成，缓存在 previews 目录）。
+/// 返回看图模式用的预览路径（懒生成，缓存在 previews 目录）。
+/// 有调色参数时返回调色预览（长边上限 2560）；否则为原尺寸预览。
 pub fn get_viewer_preview_inner(state: &AppState, id: i64) -> Result<Option<String>, String> {
     let conn = db::open_db(&state.db_path).map_err(to_str)?;
-    let path: String = conn
+    let (path, edit_json): (String, Option<String>) = conn
         .query_row(
-            "SELECT path FROM photos WHERE id = ?1",
+            "SELECT path, edit FROM photos WHERE id = ?1",
             rusqlite::params![id],
-            |row| row.get(0),
+            |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .map_err(to_str)?;
+
+    let adj = edit_json
+        .as_deref()
+        .and_then(crate::develop::Adjustments::from_json)
+        .filter(|a| !a.is_identity());
+    if let Some(adj) = adj {
+        let json = edit_json.as_deref().unwrap_or("");
+        if let Some(edited) = render_edit_preview(state, id, Path::new(&path), json, &adj)
+            .map_err(|e| format!("{e:#}"))?
+        {
+            return Ok(Some(edited.to_string_lossy().into_owned()));
+        }
+    }
 
     crate::preview::ensure(&state.preview_dir, id, Path::new(&path))
         .map_err(|e| format!("{e:#}"))
         .map(|p| p.map(|p| p.to_string_lossy().into_owned()))
+}
+
+/// 调色预览缓存：`<id>_edit_<hash8>.jpg`。参数变化 → 新哈希文件；
+/// 源预览更新（照片被替换）→ 重渲染。
+fn render_edit_preview(
+    state: &AppState,
+    id: i64,
+    src: &Path,
+    edit_json: &str,
+    adj: &crate::develop::Adjustments,
+) -> anyhow::Result<Option<PathBuf>> {
+    let hash = &blake3::hash(edit_json.as_bytes()).to_hex().to_string()[..8];
+    let out = state.preview_dir.join(format!("{id}_edit_{hash}.jpg"));
+
+    let Some(base) = crate::preview::ensure(&state.preview_dir, id, src)? else {
+        return Ok(None);
+    };
+
+    let fresh = match (
+        std::fs::metadata(&out).and_then(|m| m.modified()),
+        std::fs::metadata(&base).and_then(|m| m.modified()),
+    ) {
+        (Ok(o), Ok(b)) => o >= b,
+        _ => false,
+    };
+    if fresh {
+        return Ok(Some(out));
+    }
+
+    let img = image::open(&base)?;
+    // 看图预览长边限制 2560 保证交互流畅；导出走全分辨率
+    let rendered = crate::develop::render(img, adj, Some(2560));
+    let file = std::fs::File::create(&out)?;
+    let mut writer = std::io::BufWriter::new(file);
+    let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut writer, 92);
+    encoder.encode_image(&rendered)?;
+
+    // 清理该照片的其他调色缓存
+    let prefix = format!("{id}_edit_");
+    if let Ok(entries) = std::fs::read_dir(&state.preview_dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if name.starts_with(&prefix) && entry.path() != out {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+    }
+    Ok(Some(out))
 }
 
 #[tauri::command]
@@ -163,6 +225,15 @@ pub fn remove_folder(state: State<'_, AppState>, folder_id: i64) -> Result<(), S
     for id in &photo_ids {
         let _ = std::fs::remove_file(crate::thumbs::thumb_path_for(&state.cache_dir, *id));
         let _ = std::fs::remove_file(crate::preview::path_for(&state.preview_dir, *id));
+        // 调色预览缓存（<id>_edit_*.jpg）
+        let prefix = format!("{id}_edit_");
+        if let Ok(entries) = std::fs::read_dir(&state.preview_dir) {
+            for entry in entries.flatten() {
+                if entry.file_name().to_string_lossy().starts_with(&prefix) {
+                    let _ = std::fs::remove_file(entry.path());
+                }
+            }
+        }
     }
 
     conn.execute("DELETE FROM photos_fts WHERE rowid IN (SELECT id FROM photos WHERE folder_id = ?1)", [folder_id])
@@ -494,6 +565,11 @@ pub fn row_to_photo(
         media_type: row.get("media_type")?,
         duration_ms: row.get("duration_ms")?,
         live_motion: row.get("live_motion")?,
+        has_edit: row
+            .get::<_, Option<String>>("edit")?
+            .and_then(|s| crate::develop::Adjustments::from_json(&s))
+            .map(|a| !a.is_identity())
+            .unwrap_or(false),
     })
 }
 

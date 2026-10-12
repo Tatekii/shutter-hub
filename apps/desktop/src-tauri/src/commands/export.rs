@@ -48,19 +48,23 @@ pub fn export_photos_inner(
     let total = req.photo_ids.len() as u64;
 
     for (i, id) in req.photo_ids.iter().enumerate() {
-        let row: rusqlite::Result<(String, String, String)> = conn.query_row(
-            "SELECT path, filename, media_type FROM photos WHERE id = ?1",
+        let row: rusqlite::Result<(String, String, String, Option<String>)> = conn.query_row(
+            "SELECT path, filename, media_type, edit FROM photos WHERE id = ?1",
             [id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
         );
 
         let current = match &row {
-            Ok((_, filename, _)) => filename.clone(),
+            Ok((_, filename, _, _)) => filename.clone(),
             Err(_) => format!("#{id}"),
         };
 
         match row {
-            Ok((path, filename, media_type)) => {
+            Ok((path, filename, media_type, edit)) => {
+                let adj = edit
+                    .as_deref()
+                    .and_then(crate::develop::Adjustments::from_json)
+                    .filter(|a| !a.is_identity());
                 match export_one(
                     state,
                     *id,
@@ -71,6 +75,7 @@ pub fn export_photos_inner(
                     quality,
                     req.max_dimension,
                     suffix,
+                    adj.as_ref(),
                 ) {
                     Ok(out) => {
                         result.exported += 1;
@@ -104,6 +109,7 @@ fn export_one(
     quality: u8,
     max_dimension: Option<u32>,
     suffix: &str,
+    adj: Option<&crate::develop::Adjustments>,
 ) -> anyhow::Result<PathBuf> {
     let stem = format!("{}{}", export::file_stem(src), suffix);
 
@@ -120,6 +126,11 @@ fn export_one(
         .map_err(|e| anyhow::anyhow!("{e:#}"))?
         .ok_or_else(|| anyhow::anyhow!("无法解码（该格式暂不支持导出）"))?;
     let img = image::open(&preview)?;
+    // 非破坏性调色：导出时按全分辨率应用
+    let img = match adj {
+        Some(adj) => image::DynamicImage::ImageRgb8(crate::develop::render(img, adj, None)),
+        None => img,
+    };
     let img = export::fit_long_edge(img, max_dimension);
     export::write_image(img, target, &stem, format, quality)
 }

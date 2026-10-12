@@ -117,6 +117,10 @@ const MIGRATIONS: &[&str] = &[
     r#"
     ALTER TABLE photos ADD COLUMN live_motion TEXT;
     "#,
+    // v9: 非破坏性调色参数（JSON，与 XMP crs 字段互通）
+    r#"
+    ALTER TABLE photos ADD COLUMN edit TEXT;
+    "#,
 ];
 
 pub fn open_db(db_path: &Path) -> Result<Connection> {
