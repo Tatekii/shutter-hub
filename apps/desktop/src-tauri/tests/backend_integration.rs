@@ -347,6 +347,48 @@ fn export_photos_batch_resize_and_naming() {
     std::fs::remove_dir_all(ctx.dir.parent().unwrap()).ok();
 }
 
+#[test]
+fn collage_render_writes_grid_jpeg() {
+    let _guard = LOCK.lock().unwrap();
+    let ctx = setup("collage");
+    let out_dir = ctx.dir.parent().unwrap().join("collages");
+
+    make_jpeg(&ctx.dir.join("A.jpg"), 300, 200, 21);
+    make_jpeg(&ctx.dir.join("B.jpg"), 200, 300, 22);
+    make_jpeg(&ctx.dir.join("C.jpg"), 250, 250, 23);
+    scan(&ctx);
+
+    let state = setup_state(&ctx);
+    let conn = db::open_db(&ctx.db).unwrap();
+    let ids: Vec<i64> = {
+        let mut stmt = conn
+            .prepare("SELECT id FROM photos ORDER BY filename")
+            .unwrap();
+        let rows = stmt.query_map([], |r| r.get(0)).unwrap();
+        rows.collect::<Result<Vec<_>, _>>().unwrap()
+    };
+
+    let req = desktop_lib::models::CollageRequest {
+        photo_ids: ids.clone(),
+        layout: "grid".into(),
+        cols: 2,
+        gap: 8,
+        radius: 12,
+        background: "#ffffff".into(),
+        size: 512,
+        quality: 90,
+        target_dir: out_dir.to_string_lossy().into_owned(),
+    };
+    let result = desktop_lib::commands::render_collage_inner(&state, &req).unwrap();
+    assert!(result.failed.is_empty(), "no failures: {:?}", result.failed);
+    assert!(result.width >= 256 && result.height >= 256);
+
+    let img = image::open(&result.path).unwrap();
+    assert_eq!((img.width(), img.height()), (result.width, result.height));
+
+    std::fs::remove_dir_all(ctx.dir.parent().unwrap()).ok();
+}
+
 fn touch(path: &Path) {
     let bytes = std::fs::read(path).unwrap();
     std::thread::sleep(std::time::Duration::from_millis(5));

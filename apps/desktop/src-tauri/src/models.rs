@@ -277,3 +277,32 @@ pub struct ExportResult {
     pub total_bytes: u64,
     pub target_dir: String,
 }
+
+// ---------- 拼图 ----------
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CollageRequest {
+    pub photo_ids: Vec<i64>,
+    /// "grid" | "strip" | "featured"
+    pub layout: String,
+    /// 网格列数（2-4），其他模板忽略
+    pub cols: u32,
+    pub gap: u32,
+    pub radius: u32,
+    /// "#rrggbb"
+    pub background: String,
+    /// 长边像素
+    pub size: u32,
+    pub quality: u8,
+    pub target_dir: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CollageResult {
+    pub path: String,
+    pub width: u32,
+    pub height: u32,
+    pub failed: Vec<String>,
+}
