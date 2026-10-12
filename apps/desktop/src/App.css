@@ -285,6 +285,12 @@ body {
   width: 100%;
 }
 
+.sidebar-update-msg {
+  font-size: 11px;
+  color: var(--text-dim);
+  word-break: break-all;
+}
+
 .color-key {
   display: flex;
   gap: 6px;

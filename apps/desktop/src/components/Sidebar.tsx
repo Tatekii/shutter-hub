@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { check } from "@tauri-apps/plugin-updater";
 import { useApp } from "../lib/store";
 import type { View } from "../lib/store";
 import { COLOR_HEX } from "../lib/api";
@@ -18,6 +19,27 @@ export function Sidebar() {
 
   const [albumInput, setAlbumInput] = useState(false);
   const [albumName, setAlbumName] = useState("");
+  const [updateMsg, setUpdateMsg] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  async function checkUpdates() {
+    setChecking(true);
+    setUpdateMsg(null);
+    try {
+      const update = await check();
+      if (!update) {
+        setUpdateMsg("当前已是最新版本");
+        return;
+      }
+      setUpdateMsg(`发现新版本 ${update.version}，正在下载…`);
+      await update.downloadAndInstall();
+      setUpdateMsg(`已安装 ${update.version}，重启应用后生效`);
+    } catch (e) {
+      setUpdateMsg(`检查更新失败：${String(e)}`);
+    } finally {
+      setChecking(false);
+    }
+  }
 
   return (
     <aside className="sidebar">
@@ -158,6 +180,14 @@ export function Sidebar() {
         >
           查找重复照片
         </button>
+        <button
+          className="btn sidebar-dupe-btn"
+          onClick={() => void checkUpdates()}
+          disabled={checking}
+        >
+          {checking ? "检查中…" : "检查更新"}
+        </button>
+        {updateMsg && <div className="sidebar-update-msg">{updateMsg}</div>}
         <div className="color-key" title="色标快捷键 6-9">
           {Object.entries(COLOR_HEX).map(([name, hex]) => (
             <span key={name} className="color-dot" style={{ background: hex }} />
