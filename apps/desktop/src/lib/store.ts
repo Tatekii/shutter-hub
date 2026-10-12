@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import * as api from "./api";
+import type { Lang } from "./i18n";
 import type {
   AlbumDto,
   CardPhotoDto,
@@ -35,6 +36,7 @@ interface AppState {
   view: View;
   selectedIds: Set<number>;
   inspectorId: number | null;
+  viewerId: number | null;
   loading: boolean;
   error: string | null;
   scanning: ScanProgress | null;
@@ -51,6 +53,7 @@ interface AppState {
   ingesting: boolean;
   ingestProgress: IngestProgress | null;
   ingestResult: IngestResult | null;
+  lang: Lang;
 
   init: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -62,6 +65,9 @@ interface AppState {
   clearSelection: () => void;
   setInspector: (id: number | null) => void;
   moveSelection: (dir: 1 | -1) => void;
+  openViewer: (id: number) => void;
+  closeViewer: () => void;
+  viewerMove: (dir: 1 | -1) => void;
   rateSelected: (rating: number) => Promise<void>;
   colorSelected: (label: string) => Promise<void>;
   flagSelected: (flag: string) => Promise<void>;
@@ -84,6 +90,7 @@ interface AppState {
   computeHashes: () => Promise<void>;
   loadDupes: () => Promise<void>;
   setDupeTab: (t: "exact" | "similar") => void;
+  setLang: (l: Lang) => void;
   setError: (e: string | null) => void;
   setScanning: (s: ScanProgress | null) => void;
   setHashing: (h: HashProgress | null) => void;
@@ -99,6 +106,12 @@ function effectiveQuery(query: PhotoQuery, view: View): PhotoQuery {
   return base;
 }
 
+function detectLang(): Lang {
+  const saved = localStorage.getItem("shutter_hub.lang");
+  if (saved === "zh" || saved === "en") return saved;
+  return navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en";
+}
+
 export const useApp = create<AppState>((set, get) => ({
   folders: [],
   albums: [],
@@ -110,6 +123,7 @@ export const useApp = create<AppState>((set, get) => ({
   view: { kind: "library" },
   selectedIds: new Set(),
   inspectorId: null,
+  viewerId: null,
   loading: true,
   error: null,
   scanning: null,
@@ -126,6 +140,7 @@ export const useApp = create<AppState>((set, get) => ({
   ingesting: false,
   ingestProgress: null,
   ingestResult: null,
+  lang: detectLang(),
 
   init: async () => {
     try {
@@ -178,7 +193,7 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   setView: (v) => {
-    set({ view: v, selectedIds: new Set(), inspectorId: null });
+    set({ view: v, selectedIds: new Set(), inspectorId: null, viewerId: null });
     void get().refreshPhotos();
   },
 
@@ -218,6 +233,26 @@ export const useApp = create<AppState>((set, get) => ({
       index === -1 ? 0 : Math.min(Math.max(index + dir, 0), photos.length - 1);
     const id = photos[nextIndex].id;
     set({ inspectorId: id, selectedIds: new Set([id]) });
+  },
+
+  openViewer: (id) => {
+    set({ viewerId: id, inspectorId: id, selectedIds: new Set([id]) });
+  },
+
+  closeViewer: () => {
+    set({ viewerId: null });
+  },
+
+  // 看图内导航。当前照片被筛选掉（如旗标筛选 + 淘汰操作）时，
+  // 前进落到原位置的照片、后退落到列表开头，保证看图不中断。
+  viewerMove: (dir) => {
+    const { photos, viewerId } = get();
+    if (photos.length === 0) return;
+    const index = photos.findIndex((p) => p.id === viewerId);
+    const base = index === -1 ? (dir === 1 ? -1 : 0) : index;
+    const nextIndex = Math.min(Math.max(base + dir, 0), photos.length - 1);
+    const id = photos[nextIndex].id;
+    set({ viewerId: id, inspectorId: id, selectedIds: new Set([id]) });
   },
 
   rateSelected: async (rating) => {
@@ -439,6 +474,10 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   setDupeTab: (t) => set({ dupeTab: t }),
+  setLang: (l) => {
+    localStorage.setItem("shutter_hub.lang", l);
+    set({ lang: l });
+  },
   setError: (e) => set({ error: e }),
   setScanning: (s) => set({ scanning: s }),
   setHashing: (h) => set({ hashing: h }),

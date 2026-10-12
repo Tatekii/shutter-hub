@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import { useApp } from "../lib/store";
+import { useT } from "../lib/i18n";
 import { viewTitle } from "./Sidebar";
 import { FilterPanel } from "./FilterPanel";
 
 export function HeaderBar({ onShowHelp }: { onShowHelp: () => void }) {
+  const t = useT();
   const query = useApp((s) => s.query);
   const setQuery = useApp((s) => s.setQuery);
   const stats = useApp((s) => s.stats);
   const view = useApp((s) => s.view);
+  const lang = useApp((s) => s.lang);
+  const setLang = useApp((s) => s.setLang);
   const addFolder = useApp((s) => s.addFolder);
   const computeHashes = useApp((s) => s.computeHashes);
   const hashBusy = useApp((s) => s.hashBusy);
@@ -28,13 +32,13 @@ export function HeaderBar({ onShowHelp }: { onShowHelp: () => void }) {
         <div className="app-title">
           <span className="app-logo">◉</span>
           <span>Shutter Hub</span>
-          <span className="view-title">{viewTitle(view)}</span>
+          <span className="view-title">{viewTitle(view, lang)}</span>
         </div>
 
         <div className="search-box">
           <input
             value={search}
-            placeholder="搜索文件名、路径、相机、镜头…"
+            placeholder={t("header.searchPlaceholder")}
             onChange={(e) => {
               setSearch(e.target.value);
               setDirty(true);
@@ -49,7 +53,7 @@ export function HeaderBar({ onShowHelp }: { onShowHelp: () => void }) {
           {dirty && (
             <button
               className="icon-btn"
-              title="清空搜索"
+              title={t("header.clearSearch")}
               onClick={() => {
                 setSearch("");
                 setDirty(false);
@@ -64,25 +68,34 @@ export function HeaderBar({ onShowHelp }: { onShowHelp: () => void }) {
         <button
           className={`btn ${activeFilterCount > 0 ? "btn-active" : ""}`}
           onClick={() => setFilterOpen(!filterOpen)}
-          title="筛选条件"
+          title={t("header.filters")}
         >
-          ⚙ 筛选{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+          {t("header.filterBtn")}
+          {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
         </button>
 
         <button className="btn" onClick={() => void computeHashes()} disabled={hashBusy}>
-          {hashBusy ? "哈希计算中…" : "扫描重复"}
+          {hashBusy ? t("header.hashing") : t("header.scanDupes")}
         </button>
 
         <button className="btn btn-ghost" onClick={() => void addFolder()}>
-          + 添加文件夹
+          {t("header.addFolder")}
         </button>
 
-        <button className="icon-btn" title="键盘快捷键（?）" onClick={onShowHelp}>
+        <button
+          className="btn btn-ghost"
+          title={lang === "zh" ? "Switch to English" : "切换为中文"}
+          onClick={() => setLang(lang === "zh" ? "en" : "zh")}
+        >
+          {lang === "zh" ? "EN" : "中"}
+        </button>
+
+        <button className="icon-btn" title={t("header.helpTitle")} onClick={onShowHelp}>
           ?
         </button>
 
         <div className="app-stats">
-          {stats.photoCount} 张 · {stats.folderCount} 个文件夹
+          {t("header.stats", { n: stats.photoCount, m: stats.folderCount })}
         </div>
       </header>
       {filterOpen && <FilterPanel onClose={() => setFilterOpen(false)} />}

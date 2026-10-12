@@ -38,7 +38,7 @@ pub fn generate(photo_id: i64, src: &Path, cache_dir: &Path) -> Result<Option<Pa
     }
 }
 
-fn is_embedded_capable(path: &Path) -> bool {
+pub fn is_embedded_capable(path: &Path) -> bool {
     path.extension()
         .and_then(|e| e.to_str())
         .map(|e| EMBEDDED_PREVIEW_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()))

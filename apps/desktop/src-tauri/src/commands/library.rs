@@ -103,6 +103,33 @@ pub fn get_photo(state: State<'_, AppState>, id: i64) -> Result<PhotoDto, String
 }
 
 #[tauri::command]
+pub async fn get_viewer_preview(
+    state: State<'_, AppState>,
+    id: i64,
+) -> Result<Option<String>, String> {
+    let state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || get_viewer_preview_inner(&state, id))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// 返回看图模式用的全尺寸预览路径（懒生成，缓存在 previews 目录）。
+pub fn get_viewer_preview_inner(state: &AppState, id: i64) -> Result<Option<String>, String> {
+    let conn = db::open_db(&state.db_path).map_err(to_str)?;
+    let path: String = conn
+        .query_row(
+            "SELECT path FROM photos WHERE id = ?1",
+            rusqlite::params![id],
+            |row| row.get(0),
+        )
+        .map_err(to_str)?;
+
+    crate::preview::ensure(&state.preview_dir, id, Path::new(&path))
+        .map_err(|e| format!("{e:#}"))
+        .map(|p| p.map(|p| p.to_string_lossy().into_owned()))
+}
+
+#[tauri::command]
 pub fn get_stats(state: State<'_, AppState>) -> Result<LibraryStats, String> {
     let conn = db::open_db(&state.db_path).map_err(to_str)?;
     let photo_count: i64 = conn
@@ -135,6 +162,7 @@ pub fn remove_folder(state: State<'_, AppState>, folder_id: i64) -> Result<(), S
 
     for id in &photo_ids {
         let _ = std::fs::remove_file(crate::thumbs::thumb_path_for(&state.cache_dir, *id));
+        let _ = std::fs::remove_file(crate::preview::path_for(&state.preview_dir, *id));
     }
 
     conn.execute("DELETE FROM photos_fts WHERE rowid IN (SELECT id FROM photos WHERE folder_id = ?1)", [folder_id])

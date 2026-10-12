@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { formatBytes, thumbUrl } from "../lib/api";
+import { useT } from "../lib/i18n";
 import { useApp } from "../lib/store";
 import type { DupeGroup, SimilarPair } from "../lib/types";
 import type { PhotoDto } from "../lib/types";
 
 export function DupeView() {
+  const t = useT();
   const dupeGroups = useApp((s) => s.dupeGroups);
   const similarPairs = useApp((s) => s.similarPairs);
   const dupeTab = useApp((s) => s.dupeTab);
@@ -21,23 +23,27 @@ export function DupeView() {
             className={`btn ${dupeTab === "exact" ? "btn-active" : ""}`}
             onClick={() => setDupeTab("exact")}
           >
-            完全重复（{dupeGroups.length} 组）
+            {t("dupe.exactTab", { n: dupeGroups.length })}
           </button>
           <button
             className={`btn ${dupeTab === "similar" ? "btn-active" : ""}`}
             onClick={() => setDupeTab("similar")}
           >
-            相似照片（{similarPairs.length} 组）
+            {t("dupe.similarTab", { n: similarPairs.length })}
           </button>
         </div>
         <button className="btn" onClick={() => void computeHashes()} disabled={hashBusy}>
-          {hashBusy ? "哈希计算中…" : "重新扫描哈希"}
+          {hashBusy ? t("dupe.hashing") : t("dupe.rescan")}
         </button>
       </div>
 
       {hashing && (
         <div className="hash-progress">
-          正在计算哈希 {hashing.processed}/{hashing.total} · {hashing.current}
+          {t("dupe.hashProgress", {
+            done: hashing.processed,
+            total: hashing.total,
+            current: hashing.current,
+          })}
         </div>
       )}
 
@@ -51,19 +57,19 @@ export function DupeView() {
 }
 
 function ExactGroups({ groups }: { groups: DupeGroup[] }) {
+  const t = useT();
   if (groups.length === 0) {
-    return (
-      <div className="dupe-empty">
-        没有发现完全重复的照片。点击「重新扫描哈希」计算照片内容指纹。
-      </div>
-    );
+    return <div className="dupe-empty">{t("dupe.exactEmpty")}</div>;
   }
   return (
     <div className="dupe-list">
       {groups.map((g) => (
         <section key={g.hash} className="dupe-group">
           <div className="dupe-group-title">
-            {g.photos.length} 张完全相同的照片 · 每张 {formatBytes(g.totalSize / g.photos.length)}
+            {t("dupe.exactGroupTitle", {
+              n: g.photos.length,
+              size: formatBytes(g.totalSize / g.photos.length),
+            })}
           </div>
           <div className="dupe-photos">
             {g.photos.map((p) => (
@@ -77,18 +83,17 @@ function ExactGroups({ groups }: { groups: DupeGroup[] }) {
 }
 
 function SimilarList({ pairs }: { pairs: SimilarPair[] }) {
+  const t = useT();
   if (pairs.length === 0) {
-    return (
-      <div className="dupe-empty">
-        没有发现相似照片。相似度基于感知哈希（dHash），可用于发现连拍中的近似照片。
-      </div>
-    );
+    return <div className="dupe-empty">{t("dupe.similarEmpty")}</div>;
   }
   return (
     <div className="dupe-list">
       {pairs.map((pair, i) => (
         <section key={i} className="dupe-group">
-          <div className="dupe-group-title">相似组 · 汉明距离 {pair.distance}</div>
+          <div className="dupe-group-title">
+            {t("dupe.similarGroupTitle", { d: pair.distance })}
+          </div>
           <div className="dupe-photos">
             {pair.photos.map((p) => (
               <PhotoTile key={p.id} photo={p} />
@@ -101,13 +106,14 @@ function SimilarList({ pairs }: { pairs: SimilarPair[] }) {
 }
 
 function PhotoTile({ photo }: { photo: PhotoDto }) {
+  const t = useT();
   const url = thumbUrl(photo.thumbPath);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!copied) return;
-    const t = setTimeout(() => setCopied(false), 1500);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(timer);
   }, [copied]);
 
   return (
@@ -126,7 +132,7 @@ function PhotoTile({ photo }: { photo: PhotoDto }) {
             setCopied(true);
           }}
         >
-          {copied ? "已复制" : "复制路径"}
+          {copied ? t("dupe.copied") : t("dupe.copyPath")}
         </button>
       </div>
     </div>

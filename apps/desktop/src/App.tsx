@@ -10,10 +10,13 @@ import { PhotoGrid } from "./components/PhotoGrid";
 import { ScanBar } from "./components/ScanBar";
 import { SelectionBar } from "./components/SelectionBar";
 import { Sidebar } from "./components/Sidebar";
+import { Viewer } from "./components/Viewer";
 import * as api from "./lib/api";
+import { useT } from "./lib/i18n";
 import { useApp } from "./lib/store";
 
 function App() {
+  const t = useT();
   const init = useApp((s) => s.init);
   const loading = useApp((s) => s.loading);
   const error = useApp((s) => s.error);
@@ -77,6 +80,8 @@ function App() {
       return;
     }
     const s = useApp.getState();
+    // 看图模式打开时按键全部交给 Viewer 处理
+    if (s.viewerId != null) return;
     if (e.key === "?") {
       setShowHelp((v) => !v);
       return;
@@ -85,6 +90,10 @@ function App() {
       setShowHelp(false);
       if (s.cardVolume) s.closeVolume();
       else s.clearSelection();
+      return;
+    }
+    if (e.key === "Enter" && s.inspectorId != null) {
+      s.openViewer(s.inspectorId);
       return;
     }
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
@@ -181,7 +190,7 @@ function App() {
             className="btn btn-primary"
             onClick={() => setShowVolumePicker(!showVolumePicker)}
           >
-            💾 检测到存储设备（{volumes.length}）
+            {t("app.volumeDetected", { n: volumes.length })}
           </button>
           {showVolumePicker && (
             <div className="volume-picker">
@@ -221,8 +230,11 @@ function App() {
               />
             </div>
             <span className="scan-bar-text">
-              正在计算哈希 {hashing.processed}/{hashing.total}
-              {hashing.current ? ` · ${hashing.current}` : ""}
+              {t("dupe.hashProgress", {
+                done: hashing.processed,
+                total: hashing.total,
+                current: hashing.current ?? "",
+              })}
             </span>
           </div>
         </footer>
@@ -230,6 +242,7 @@ function App() {
 
       {cardVolume && <CardBrowser />}
       {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
+      <Viewer />
     </div>
   );
 }

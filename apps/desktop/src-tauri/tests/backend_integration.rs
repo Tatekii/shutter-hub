@@ -2,7 +2,6 @@
 
 use desktop_lib::commands::{
     add_photos_to_album_inner, create_album_inner, list_dupes_inner, list_similar_inner,
-    set_flag_inner, set_rating_inner,
 };
 use desktop_lib::db;
 use desktop_lib::indexer;
@@ -18,6 +17,7 @@ struct TestCtx {
     dir: PathBuf,
     db: PathBuf,
     cache: PathBuf,
+    previews: PathBuf,
 }
 
 fn setup(tag: &str) -> TestCtx {
@@ -27,11 +27,14 @@ fn setup(tag: &str) -> TestCtx {
     std::fs::create_dir_all(&photos_dir).unwrap();
     let cache = base.join("thumbs");
     std::fs::create_dir_all(&cache).unwrap();
+    let previews = base.join("previews");
+    std::fs::create_dir_all(&previews).unwrap();
     let db_path = base.join("test.db");
     TestCtx {
         dir: photos_dir,
         db: db_path,
         cache,
+        previews,
     }
 }
 
@@ -100,6 +103,7 @@ fn setup_state(ctx: &TestCtx) -> desktop_lib::AppState {
     desktop_lib::AppState {
         db_path: ctx.db.clone(),
         cache_dir: ctx.cache.clone(),
+        preview_dir: ctx.previews.clone(),
     }
 }
 
@@ -236,4 +240,36 @@ fn touch(path: &Path) {
     let bytes = std::fs::read(path).unwrap();
     std::thread::sleep(std::time::Duration::from_millis(5));
     std::fs::write(path, bytes).unwrap();
+}
+
+#[test]
+fn viewer_preview_is_full_size_and_reused() {
+    let _guard = LOCK.lock().unwrap();
+    let ctx = setup("viewer");
+
+    make_jpeg(&ctx.dir.join("photo.jpg"), 800, 600, 9);
+    scan(&ctx);
+
+    let conn = db::open_db(&ctx.db).unwrap();
+    let (id, path): (i64, String) = conn
+        .query_row("SELECT id, path FROM photos", [], |r| Ok((r.get(0)?, r.get(1)?)))
+        .unwrap();
+
+    let state = setup_state(&ctx);
+    let out = desktop_lib::commands::get_viewer_preview_inner(&state, id)
+        .unwrap()
+        .expect("viewer preview generated");
+    let img = image::open(&out).unwrap();
+    assert_eq!((img.width(), img.height()), (800, 600), "full-size, no downscale");
+
+    // 字节级拷贝：预览应与原 JPEG 完全一致
+    assert_eq!(std::fs::read(&out).unwrap(), std::fs::read(&path).unwrap());
+
+    // 再次请求应复用缓存
+    let out2 = desktop_lib::commands::get_viewer_preview_inner(&state, id)
+        .unwrap()
+        .expect("preview reused");
+    assert_eq!(out, out2);
+
+    std::fs::remove_dir_all(ctx.dir.parent().unwrap()).ok();
 }

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { formatBytes, thumbUrl } from "../lib/api";
+import { useT } from "../lib/i18n";
 import { useApp } from "../lib/store";
 
 export function CardBrowser() {
+  const t = useT();
   const cardVolume = useApp((s) => s.cardVolume);
   const cardPhotos = useApp((s) => s.cardPhotos);
   const cardMarks = useApp((s) => s.cardMarks);
@@ -45,53 +47,65 @@ export function CardBrowser() {
           <div>
             <div className="card-title">💾 {cardVolume.name}</div>
             <div className="card-subtitle">
-              {cardVolume.path} · 可用 {formatBytes(cardVolume.availableBytes)} /{" "}
-              {formatBytes(cardVolume.totalBytes)}
+              {cardVolume.path} ·{" "}
+              {t("card.space", {
+                free: formatBytes(cardVolume.availableBytes),
+                total: formatBytes(cardVolume.totalBytes),
+              })}
             </div>
           </div>
-          <button className="icon-btn" title="关闭" onClick={closeVolume}>
+          <button className="icon-btn" title={t("card.close")} onClick={closeVolume}>
             ×
           </button>
         </header>
 
         {cardScanning ? (
-          <div className="card-body">正在扫描存储卡…</div>
+          <div className="card-body">{t("card.scanning")}</div>
         ) : (
           <>
             <div className="card-toolbar">
               <span>
-                已选 {selectedCount}/{cardPhotos.length} 张（{formatBytes(totalSelectedBytes)}）
+                {t("card.selected", {
+                  n: selectedCount,
+                  total: cardPhotos.length,
+                  size: formatBytes(totalSelectedBytes),
+                })}
               </span>
-              <button className="btn" onClick={() => markAllCard(cardMarks.size < cardPhotos.length)}>
-                全选 / 全不选
+              <button
+                className="btn"
+                onClick={() => markAllCard(cardMarks.size < cardPhotos.length)}
+              >
+                {t("card.toggleAll")}
               </button>
               <button
                 className="btn btn-primary"
                 disabled={selectedCount === 0 || ingesting}
                 onClick={() => void startIngest(target, organize)}
               >
-                {ingesting ? "导入中…" : `导入 ${selectedCount} 张`}
+                {ingesting ? t("card.importing") : t("card.import", { n: selectedCount })}
               </button>
               <button
                 className="btn"
                 onClick={() => {
-                  if (confirm(`安全弹出「${cardVolume.name}」？`)) void eject(cardVolume.path);
+                  if (confirm(t("card.ejectConfirm", { name: cardVolume.name }))) {
+                    void eject(cardVolume.path);
+                  }
                 }}
               >
-                安全弹出
+                {t("card.eject")}
               </button>
             </div>
 
             <div className="card-options">
               <label className="card-target">
-                导入到：
-                <span className="card-target-path">{target || "未选择目标文件夹"}</span>
+                {t("card.importTo")}
+                <span className="card-target-path">{target || t("card.noTarget")}</span>
                 <button
                   className="btn"
                   ref={targetRef}
                   onClick={() => setPicking(true)}
                 >
-                  选择…
+                  {t("card.choose")}
                 </button>
               </label>
               <label className="checkbox-label">
@@ -100,24 +114,29 @@ export function CardBrowser() {
                   checked={organize}
                   onChange={(e) => setOrganize(e.target.checked)}
                 />
-                按拍摄日期归档（YYYY/YYYY-MM-DD）
+                {t("card.organizeByDate")}
               </label>
             </div>
 
             {ingesting && ingestProgress && (
               <div className="card-progress">
-                导入中 {ingestProgress.processed}/{ingestProgress.total} ·{" "}
-                {ingestProgress.current}
+                {t("card.progress", {
+                  done: ingestProgress.processed,
+                  total: ingestProgress.total,
+                  current: ingestProgress.current,
+                })}
               </div>
             )}
 
             {ingestResult && !ingesting && (
               <div className="card-result">
-                ✓ 导入完成：{ingestResult.copied} 张，共{" "}
-                {formatBytes(ingestResult.totalBytes)}
+                {t("card.done", {
+                  n: ingestResult.copied,
+                  size: formatBytes(ingestResult.totalBytes),
+                })}
                 {ingestResult.failed.length > 0 && (
                   <details>
-                    <summary>失败 {ingestResult.failed.length} 张</summary>
+                    <summary>{t("card.failed", { n: ingestResult.failed.length })}</summary>
                     <ul>
                       {ingestResult.failed.map((f, i) => (
                         <li key={i}>{f}</li>

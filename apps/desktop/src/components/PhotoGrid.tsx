@@ -74,6 +74,7 @@ function PhotoCard({ photo }: { photo: PhotoDto }) {
   const selected = useApp((s) => s.selectedIds.has(photo.id));
   const inspectorId = useApp((s) => s.inspectorId);
   const select = useApp((s) => s.select);
+  const openViewer = useApp((s) => s.openViewer);
 
   const isInspector = inspectorId === photo.id;
 
@@ -82,10 +83,7 @@ function PhotoCard({ photo }: { photo: PhotoDto }) {
       className={`photo-card ${selected ? "selected" : ""} ${isInspector ? "inspector" : ""}`}
       title={photo.filename}
       onClick={(e) => select(photo.id, e.metaKey || e.ctrlKey)}
-      onDoubleClick={(e) => {
-        e.preventDefault();
-        select(photo.id, false);
-      }}
+      onDoubleClick={() => openViewer(photo.id)}
     >
       <div className="photo-card-thumb">
         {url ? (

@@ -1,22 +1,29 @@
+import { useT } from "../lib/i18n";
+
 export function HelpOverlay({ onClose }: { onClose: () => void }) {
+  const t = useT();
   const shortcuts: Array<[string, string]> = [
-    ["← / →", "切换照片"],
-    ["1 – 5", "评分 1-5 星"],
-    ["0", "清除评分"],
-    ["6 / 7 / 8 / 9", "色标：红 / 黄 / 绿 / 蓝"],
-    ["P", "旗标：留存"],
-    ["X", "旗标：淘汰"],
-    ["U", "清除旗标"],
-    ["⌘/Ctrl + 点击", "多选照片"],
-    ["⌘/Ctrl + A", "全选当前列表"],
-    ["Esc", "关闭面板 / 清除选择"],
-    ["?", "显示本帮助"],
+    ["← / →", t("help.prevNext")],
+    ["双击 / Enter", t("help.openViewer")],
+    ["1 – 5", t("help.rate")],
+    ["0", t("help.clearRate")],
+    ["6 / 7 / 8 / 9", t("help.color")],
+    ["P", t("help.pick")],
+    ["X", t("help.reject")],
+    ["U", t("help.clearFlag")],
+    ["⌘/Ctrl + 点击", t("help.multiSelect")],
+    ["⌘/Ctrl + A", t("help.selectAll")],
+    ["看图内 1-5 / P / X", t("help.autoAdvance")],
+    ["看图内 Z", t("help.zoomToggle")],
+    ["看图内 滚轮 / 拖拽", t("help.wheelDrag")],
+    ["Esc", t("help.escape")],
+    ["?", t("help.help")],
   ];
 
   return (
     <div className="help-overlay" onClick={onClose}>
       <div className="help-dialog" onClick={(e) => e.stopPropagation()}>
-        <h2>键盘快捷键</h2>
+        <h2>{t("help.title")}</h2>
         <table className="help-table">
           <tbody>
             {shortcuts.map(([keys, desc]) => (
@@ -31,7 +38,7 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
         </table>
         <div className="help-footer">
           <button className="btn btn-primary" onClick={onClose}>
-            知道了
+            {t("help.done")}
           </button>
         </div>
       </div>

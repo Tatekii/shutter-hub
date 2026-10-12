@@ -3,6 +3,7 @@ pub mod db;
 pub mod indexer;
 pub mod metadata;
 pub mod models;
+pub mod preview;
 pub mod thumbs;
 pub mod volumes;
 pub mod xmp;
@@ -10,9 +11,11 @@ pub mod xmp;
 use std::path::PathBuf;
 use tauri::Manager;
 
+#[derive(Clone)]
 pub struct AppState {
     pub db_path: PathBuf,
     pub cache_dir: PathBuf,
+    pub preview_dir: PathBuf,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -24,13 +27,15 @@ pub fn run() {
         .setup(|app| {
             let cache_dir = app.path().app_cache_dir()?.join("thumbs");
             std::fs::create_dir_all(&cache_dir)?;
+            let preview_dir = app.path().app_cache_dir()?.join("previews");
+            std::fs::create_dir_all(&preview_dir)?;
 
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
             let db_path = data_dir.join("shutter_hub.db");
             db::open_db(&db_path)?;
 
-            app.manage(AppState { db_path, cache_dir });
+            app.manage(AppState { db_path, cache_dir, preview_dir });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -39,6 +44,7 @@ pub fn run() {
             commands::list_folders,
             commands::list_photos,
             commands::get_photo,
+            commands::get_viewer_preview,
             commands::get_stats,
             commands::remove_folder,
             commands::set_rating,

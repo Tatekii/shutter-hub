@@ -1,7 +1,9 @@
 import { useApp } from "../lib/store";
+import { useT } from "../lib/i18n";
 import { useState } from "react";
 
 export function SelectionBar() {
+  const t = useT();
   const selectedIds = useApp((s) => s.selectedIds);
   const albums = useApp((s) => s.albums);
   const clearSelection = useApp((s) => s.clearSelection);
@@ -13,16 +15,16 @@ export function SelectionBar() {
 
   return (
     <div className="selection-bar">
-      <span className="selection-count">已选 {selectedIds.size} 张</span>
+      <span className="selection-count">{t("select.count", { n: selectedIds.size })}</span>
       <select
         value=""
         onChange={(e) => {
           const id = Number(e.target.value);
           if (id) void addSelectedToAlbum(id);
         }}
-        title="加入相册"
+        title={t("select.addToAlbumTitle")}
       >
-        <option value="">加入相册…</option>
+        <option value="">{t("select.addToAlbum")}</option>
         {albums.map((a) => (
           <option key={a.id} value={a.id}>
             {a.name}
@@ -34,7 +36,7 @@ export function SelectionBar() {
           e.preventDefault();
           const tags = tagInput
             .split(/[,，\s]+/)
-            .map((t) => t.trim())
+            .map((tag) => tag.trim())
             .filter(Boolean);
           if (tags.length > 0) void addTagsToSelected(tags);
           setTagInput("");
@@ -43,11 +45,11 @@ export function SelectionBar() {
         <input
           value={tagInput}
           onChange={(e) => setTagInput(e.target.value)}
-          placeholder="添加标签（逗号分隔）"
+          placeholder={t("select.tagPlaceholder")}
         />
       </form>
       <button className="btn" onClick={clearSelection}>
-        取消选择
+        {t("select.cancel")}
       </button>
     </div>
   );

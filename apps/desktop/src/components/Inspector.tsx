@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { COLOR_HEX, COLOR_LABELS, formatBytes, thumbUrl } from "../lib/api";
+import { COLOR_HEX, formatBytes, thumbUrl } from "../lib/api";
+import { useT } from "../lib/i18n";
 import { useApp } from "../lib/store";
 
 export function Inspector() {
+  const t = useT();
   const inspectorId = useApp((s) => s.inspectorId);
   const photos = useApp((s) => s.photos);
   const setInspector = useApp((s) => s.setInspector);
@@ -16,26 +18,30 @@ export function Inspector() {
   if (!photo) return null;
 
   const url = thumbUrl(photo.thumbPath);
+  const unknown = t("inspector.unknown");
 
   const rows: Array<[string, string]> = [
-    ["文件名", photo.filename],
-    ["拍摄时间", photo.takenAt ?? "未知"],
-    ["尺寸", photo.width ? `${photo.width} × ${photo.height}` : "未知"],
-    ["文件大小", formatBytes(photo.size)],
-    ["相机", [photo.cameraMake, photo.cameraModel].filter(Boolean).join(" ") || "未知"],
-    ["镜头", photo.lensModel ?? "未知"],
-    ["焦距", photo.focalLength != null ? `${photo.focalLength}mm` : "未知"],
-    ["光圈", photo.aperture != null ? `f/${photo.aperture}` : "未知"],
-    ["快门", photo.shutterSpeed ?? "未知"],
-    ["ISO", photo.iso?.toString() ?? "未知"],
-    ["路径", photo.path],
+    [t("inspector.rowFilename"), photo.filename],
+    [t("inspector.rowTaken"), photo.takenAt ?? unknown],
+    [t("inspector.rowDims"), photo.width ? `${photo.width} × ${photo.height}` : unknown],
+    [t("inspector.rowSize"), formatBytes(photo.size)],
+    [
+      t("inspector.rowCamera"),
+      [photo.cameraMake, photo.cameraModel].filter(Boolean).join(" ") || unknown,
+    ],
+    [t("inspector.rowLens"), photo.lensModel ?? unknown],
+    [t("inspector.rowFocal"), photo.focalLength != null ? `${photo.focalLength}mm` : unknown],
+    [t("inspector.rowAperture"), photo.aperture != null ? `f/${photo.aperture}` : unknown],
+    [t("inspector.rowShutter"), photo.shutterSpeed ?? unknown],
+    [t("inspector.rowIso"), photo.iso?.toString() ?? unknown],
+    [t("inspector.rowPath"), photo.path],
   ];
 
   return (
     <aside className="inspector">
       <div className="inspector-header">
-        <span>照片详情</span>
-        <button className="icon-btn" title="关闭 (Esc)" onClick={() => setInspector(null)}>
+        <span>{t("inspector.title")}</span>
+        <button className="icon-btn" title={t("inspector.close")} onClick={() => setInspector(null)}>
           ×
         </button>
       </div>
@@ -44,7 +50,7 @@ export function Inspector() {
         {url ? (
           <img src={url} alt={photo.filename} draggable={false} />
         ) : (
-          <div className="photo-card-placeholder">无预览</div>
+          <div className="photo-card-placeholder">{t("inspector.noPreview")}</div>
         )}
       </div>
 
@@ -54,7 +60,7 @@ export function Inspector() {
             <button
               key={r}
               className={`star ${photo.rating >= r ? "on" : ""}`}
-              title={`评分 ${r}`}
+              title={t("inspector.rate", { n: r })}
               onClick={() => void rateSelected(photo.rating === r ? 0 : r)}
             >
               ★
@@ -67,23 +73,23 @@ export function Inspector() {
               key={name}
               className={`color-pick ${photo.colorLabel === name ? "on" : ""}`}
               style={{ background: hex }}
-              title={`色标 ${COLOR_LABELS[name]}（再次点击取消）`}
+              title={t("inspector.colorToggle", { name: t(`color.${name}`) })}
               onClick={() => void colorSelected(photo.colorLabel === name ? "" : name)}
             />
           ))}
           <button
             className={`flag-pick ${photo.flag === "pick" ? "on-pick" : ""}`}
-            title="留存 (P)"
+            title={t("inspector.pick")}
             onClick={() => void flagSelected(photo.flag === "pick" ? "" : "pick")}
           >
-            ✓ 留存
+            ✓ {t("inspector.pickLabel")}
           </button>
           <button
             className={`flag-pick ${photo.flag === "reject" ? "on-reject" : ""}`}
-            title="淘汰 (X)"
+            title={t("inspector.reject")}
             onClick={() => void flagSelected(photo.flag === "reject" ? "" : "reject")}
           >
-            ✕ 淘汰
+            ✕ {t("inspector.rejectLabel")}
           </button>
         </div>
       </div>
@@ -94,7 +100,7 @@ export function Inspector() {
           e.preventDefault();
           const tags = tagInput
             .split(/[,，\s]+/)
-            .map((t) => t.trim())
+            .map((tag) => tag.trim())
             .filter(Boolean);
           if (tags.length > 0) void addTagsToSelected(tags);
           setTagInput("");
@@ -103,7 +109,7 @@ export function Inspector() {
         <input
           value={tagInput}
           onChange={(e) => setTagInput(e.target.value)}
-          placeholder="添加标签（逗号分隔）"
+          placeholder={t("inspector.tagPlaceholder")}
         />
       </form>
 

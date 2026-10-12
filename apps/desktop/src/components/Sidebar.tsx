@@ -2,9 +2,11 @@ import { useState } from "react";
 import { check } from "@tauri-apps/plugin-updater";
 import { useApp } from "../lib/store";
 import type { View } from "../lib/store";
+import { translate, useT } from "../lib/i18n";
 import { COLOR_HEX } from "../lib/api";
 
 export function Sidebar() {
+  const t = useT();
   const folders = useApp((s) => s.folders);
   const albums = useApp((s) => s.albums);
   const tags = useApp((s) => s.tags);
@@ -28,14 +30,14 @@ export function Sidebar() {
     try {
       const update = await check();
       if (!update) {
-        setUpdateMsg("当前已是最新版本");
+        setUpdateMsg(t("sidebar.upToDate"));
         return;
       }
-      setUpdateMsg(`发现新版本 ${update.version}，正在下载…`);
+      setUpdateMsg(t("sidebar.foundUpdate", { v: update.version }));
       await update.downloadAndInstall();
-      setUpdateMsg(`已安装 ${update.version}，重启应用后生效`);
+      setUpdateMsg(t("sidebar.installedUpdate", { v: update.version }));
     } catch (e) {
-      setUpdateMsg(`检查更新失败：${String(e)}`);
+      setUpdateMsg(t("sidebar.updateFailed", { e: String(e) }));
     } finally {
       setChecking(false);
     }
@@ -45,12 +47,14 @@ export function Sidebar() {
     <aside className="sidebar">
       <section className="sidebar-section">
         <div className="sidebar-title">
-          <span>文件夹</span>
-          <button className="icon-btn" title="添加文件夹" onClick={() => void addFolder()}>
+          <span>{t("sidebar.folders")}</span>
+          <button className="icon-btn" title={t("sidebar.addFolder")} onClick={() => void addFolder()}>
             +
           </button>
         </div>
-        {folders.length === 0 && <div className="sidebar-hint">还没有文件夹</div>}
+        {folders.length === 0 && (
+          <div className="sidebar-hint">{t("sidebar.noFolders")}</div>
+        )}
         {folders.map((f) => (
           <div
             key={f.id}
@@ -63,7 +67,7 @@ export function Sidebar() {
             <span className="sidebar-item-actions">
               <button
                 className="icon-btn tiny"
-                title="重新扫描"
+                title={t("sidebar.rescan")}
                 onClick={(e) => {
                   e.stopPropagation();
                   void rescanFolder(f.id);
@@ -73,7 +77,7 @@ export function Sidebar() {
               </button>
               <button
                 className="icon-btn tiny danger"
-                title="移除（不删除文件）"
+                title={t("sidebar.removeFolder")}
                 onClick={(e) => {
                   e.stopPropagation();
                   void removeFolder(f.id);
@@ -88,10 +92,10 @@ export function Sidebar() {
 
       <section className="sidebar-section">
         <div className="sidebar-title">
-          <span>相册</span>
+          <span>{t("sidebar.albums")}</span>
           <button
             className="icon-btn"
-            title="新建相册"
+            title={t("sidebar.newAlbum")}
             onClick={() => setAlbumInput(true)}
           >
             +
@@ -111,7 +115,7 @@ export function Sidebar() {
               autoFocus
               value={albumName}
               onChange={(e) => setAlbumName(e.target.value)}
-              placeholder="相册名称"
+              placeholder={t("sidebar.albumName")}
             />
           </form>
         )}
@@ -129,7 +133,7 @@ export function Sidebar() {
             <span className="sidebar-item-actions">
               <button
                 className="icon-btn tiny danger"
-                title="删除相册（不删除照片）"
+                title={t("sidebar.deleteAlbum")}
                 onClick={(e) => {
                   e.stopPropagation();
                   void deleteAlbum(a.id);
@@ -144,26 +148,26 @@ export function Sidebar() {
 
       <section className="sidebar-section">
         <div className="sidebar-title">
-          <span>标签</span>
+          <span>{t("sidebar.tags")}</span>
         </div>
-        {tags.map((t) => (
+        {tags.map((tag) => (
           <div
-            key={t.id}
+            key={tag.id}
             className={`sidebar-item ${
-              view.kind === "tag" && view.id === t.id ? "active" : ""
+              view.kind === "tag" && view.id === tag.id ? "active" : ""
             }`}
-            onClick={() => setView({ kind: "tag", id: t.id, name: t.name })}
-            title={t.name}
+            onClick={() => setView({ kind: "tag", id: tag.id, name: tag.name })}
+            title={tag.name}
           >
-            <span className="sidebar-item-name"># {t.name}</span>
-            <span className="sidebar-item-count">{t.photoCount}</span>
+            <span className="sidebar-item-name"># {tag.name}</span>
+            <span className="sidebar-item-count">{tag.photoCount}</span>
             <span className="sidebar-item-actions">
               <button
                 className="icon-btn tiny danger"
-                title="删除标签"
+                title={t("sidebar.deleteTag")}
                 onClick={(e) => {
                   e.stopPropagation();
-                  void deleteTag(t.id);
+                  void deleteTag(tag.id);
                 }}
               >
                 ×
@@ -178,17 +182,17 @@ export function Sidebar() {
           className="btn btn-ghost sidebar-dupe-btn"
           onClick={() => useApp.getState().setView({ kind: "dupes" })}
         >
-          查找重复照片
+          {t("sidebar.findDupes")}
         </button>
         <button
           className="btn sidebar-dupe-btn"
           onClick={() => void checkUpdates()}
           disabled={checking}
         >
-          {checking ? "检查中…" : "检查更新"}
+          {checking ? t("sidebar.checking") : t("sidebar.checkUpdates")}
         </button>
         {updateMsg && <div className="sidebar-update-msg">{updateMsg}</div>}
-        <div className="color-key" title="色标快捷键 6-9">
+        <div className="color-key" title={t("sidebar.colorKeyTitle")}>
           {Object.entries(COLOR_HEX).map(([name, hex]) => (
             <span key={name} className="color-dot" style={{ background: hex }} />
           ))}
@@ -203,15 +207,15 @@ function folderName(path: string): string {
   return parts[parts.length - 1] ?? path;
 }
 
-export function viewTitle(view: View): string {
+export function viewTitle(view: View, lang: "zh" | "en"): string {
   switch (view.kind) {
     case "library":
-      return "资料库";
+      return translate(lang, "sidebar.viewLibrary");
     case "album":
-      return `相册 · ${view.name}`;
+      return translate(lang, "sidebar.viewAlbum", { name: view.name });
     case "tag":
-      return `标签 · #${view.name}`;
+      return translate(lang, "sidebar.viewTag", { name: view.name });
     case "dupes":
-      return "重复照片";
+      return translate(lang, "sidebar.viewDupes");
   }
 }
