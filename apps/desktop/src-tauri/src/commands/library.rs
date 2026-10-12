@@ -405,6 +405,13 @@ fn build_photo_query(q: &PhotoQuery) -> (String, Vec<Box<dyn rusqlite::ToSql>>) 
             params.push(Box::new(v.clone()));
         }
     }
+    if let Some(true) = q.has_face {
+        clauses.push("EXISTS (SELECT 1 FROM faces WHERE faces.photo_id = photos.id)".to_string());
+    } else if let Some(false) = q.has_face {
+        clauses.push(
+            "NOT EXISTS (SELECT 1 FROM faces WHERE faces.photo_id = photos.id)".to_string(),
+        );
+    }
     if let Some(id) = q.album_id {
         clauses.push(
             "id IN (SELECT photo_id FROM album_photos WHERE album_id = ?)".to_string(),

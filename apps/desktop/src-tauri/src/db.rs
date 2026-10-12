@@ -88,6 +88,31 @@ const MIGRATIONS: &[&str] = &[
     ALTER TABLE photos ADD COLUMN media_type  TEXT NOT NULL DEFAULT 'photo';
     ALTER TABLE photos ADD COLUMN duration_ms INTEGER;
     "#,
+    // v7: 本地 AI（CLIP 语义向量 + UltraFace 人脸框）
+    r#"
+    CREATE TABLE IF NOT EXISTS embeddings (
+        photo_id  INTEGER PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE,
+        embedding BLOB NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS faces (
+        id       INTEGER PRIMARY KEY,
+        photo_id INTEGER NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
+        x        REAL NOT NULL,
+        y        REAL NOT NULL,
+        w        REAL NOT NULL,
+        h        REAL NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_faces_photo ON faces(photo_id);
+
+    -- 记录已处理过的照片（如人脸扫描：无脸也算处理完成）
+    CREATE TABLE IF NOT EXISTS ai_markers (
+        photo_id INTEGER NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
+        kind     TEXT NOT NULL,
+        PRIMARY KEY (photo_id, kind)
+    );
+    "#,
 ];
 
 pub fn open_db(db_path: &Path) -> Result<Connection> {

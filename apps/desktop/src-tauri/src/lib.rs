@@ -1,3 +1,4 @@
+pub mod ai;
 pub mod commands;
 pub mod db;
 pub mod indexer;
@@ -10,6 +11,8 @@ pub mod volumes;
 pub mod xmp;
 
 use std::path::PathBuf;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use tauri::Manager;
 
 #[derive(Clone)]
@@ -17,6 +20,8 @@ pub struct AppState {
     pub db_path: PathBuf,
     pub cache_dir: PathBuf,
     pub preview_dir: PathBuf,
+    pub model_dir: PathBuf,
+    pub ai_busy: Arc<AtomicBool>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -36,7 +41,17 @@ pub fn run() {
             let db_path = data_dir.join("shutter_hub.db");
             db::open_db(&db_path)?;
 
-            app.manage(AppState { db_path, cache_dir, preview_dir });
+            // 本地 AI 模型目录（首次使用时按需下载）
+            let model_dir = data_dir.join("models");
+            std::fs::create_dir_all(&model_dir)?;
+
+            app.manage(AppState {
+                db_path,
+                cache_dir,
+                preview_dir,
+                model_dir,
+                ai_busy: Arc::new(AtomicBool::new(false)),
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -68,6 +83,12 @@ pub fn run() {
             volumes::browse_volume,
             volumes::ingest_files,
             volumes::eject_volume,
+            commands::ai_status,
+            commands::ai_download_models,
+            commands::ai_compute_embeddings,
+            commands::ai_detect_faces,
+            commands::ai_search,
+            commands::list_faces,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

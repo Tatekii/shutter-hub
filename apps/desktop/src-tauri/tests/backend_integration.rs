@@ -108,6 +108,8 @@ fn setup_state(ctx: &TestCtx) -> desktop_lib::AppState {
         db_path: ctx.db.clone(),
         cache_dir: ctx.cache.clone(),
         preview_dir: ctx.previews.clone(),
+        model_dir: ctx.dir.parent().unwrap().join("models"),
+        ai_busy: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
     }
 }
 

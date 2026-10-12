@@ -56,6 +56,8 @@ pub struct PhotoQuery {
     pub flag: Option<String>,
     /// "photo" | "video"
     pub media_type: Option<String>,
+    /// 仅看/排除有人脸的照片
+    pub has_face: Option<bool>,
     pub album_id: Option<i64>,
     pub tag_id: Option<i64>,
 }
@@ -188,4 +190,56 @@ pub struct FacetDto {
 pub struct FacetValue {
     pub value: String,
     pub count: i64,
+}
+
+// ---------- 本地 AI ----------
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiStatusDto {
+    pub clip_ready: bool,
+    pub face_ready: bool,
+    pub embeddings_done: i64,
+    pub embeddings_total: i64,
+    pub faces_done: i64,
+    pub faces_total: i64,
+    pub busy: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiDownloadProgress {
+    pub file: String,
+    pub received: u64,
+    pub total: Option<u64>,
+    pub done: bool,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiJobProgress {
+    /// "embeddings" | "faces"
+    pub kind: String,
+    pub processed: u64,
+    pub total: u64,
+    pub current: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiJobDone {
+    pub kind: String,
+    pub ok: bool,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FaceDto {
+    /// 归一化坐标（0-1，相对图片尺寸）
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
 }
