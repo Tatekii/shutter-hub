@@ -146,7 +146,11 @@ pub fn remove_folder(state: State<'_, AppState>, folder_id: i64) -> Result<(), S
 
 #[tauri::command]
 pub fn set_rating(state: State<'_, AppState>, id: i64, rating: i64) -> Result<(), String> {
-    update_rating_field(&state, id, |path| xmp::write_rating(path, rating), rating, |conn| {
+    set_rating_inner(&state, id, rating)
+}
+
+pub fn set_rating_inner(state: &AppState, id: i64, rating: i64) -> Result<(), String> {
+    update_rating_field(state, id, |path| xmp::write_rating(path, rating), rating, |conn| {
         conn.execute(
             "UPDATE photos SET rating = ?1 WHERE id = ?2",
             rusqlite::params![rating, id],
@@ -175,13 +179,17 @@ pub fn set_color_label(state: State<'_, AppState>, id: i64, label: String) -> Re
 
 #[tauri::command]
 pub fn set_flag(state: State<'_, AppState>, id: i64, flag: String) -> Result<(), String> {
+    set_flag_inner(&state, id, flag)
+}
+
+pub fn set_flag_inner(state: &AppState, id: i64, flag: String) -> Result<(), String> {
     let flag = if flag == "pick" || flag == "reject" {
         flag
     } else {
         String::new()
     };
     update_rating_field(
-        &state,
+        state,
         id,
         |path| xmp::write_flag(path, &flag),
         &flag,
@@ -400,7 +408,7 @@ fn escape_fts(q: &str) -> String {
         .join(" ")
 }
 
-pub(crate) fn query_photos(
+pub fn query_photos(
     conn: &Connection,
     sql: &str,
     params: &[&dyn rusqlite::ToSql],
@@ -411,7 +419,7 @@ pub(crate) fn query_photos(
     rows.collect()
 }
 
-pub(crate) fn row_to_photo(
+pub fn row_to_photo(
     row: &rusqlite::Row<'_>,
     cache_dir: &Path,
 ) -> rusqlite::Result<PhotoDto> {
@@ -474,7 +482,10 @@ async fn insert_and_scan(
     let cache_dir = state.cache_dir.clone();
 
     tauri::async_runtime::spawn_blocking(move || {
-        let result = indexer::scan_folder(&app, folder_id, &dir, &db_path, &cache_dir);
+        let emitter = app.clone();
+        let result = indexer::scan_folder(folder_id, &dir, &db_path, &cache_dir, move |p| {
+            let _ = emitter.emit("scan://progress", p);
+        });
         match &result {
             Ok(stats) => {
                 let _ = app.emit("scan://done", stats);

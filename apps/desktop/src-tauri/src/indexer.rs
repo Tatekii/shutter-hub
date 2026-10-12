@@ -7,7 +7,6 @@ use anyhow::Result;
 use rayon::prelude::*;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
-use tauri::{AppHandle, Emitter};
 
 const IMAGE_EXTENSIONS: &[&str] = &[
     "jpg", "jpeg", "png", "webp", "tif", "tiff", "heic", "heif", "psd",
@@ -26,13 +25,16 @@ pub enum IndexOutcome {
     Skipped,
 }
 
-pub fn scan_folder(
-    app: &AppHandle,
+pub fn scan_folder<F>(
     folder_id: i64,
     folder_path: &Path,
     db_path: &Path,
     cache_dir: &Path,
-) -> Result<ScanStats> {
+    on_progress: F,
+) -> Result<ScanStats>
+where
+    F: Fn(ScanProgress),
+{
     let paths = collect_images(folder_path);
     let total = paths.len() as u64;
 
@@ -62,18 +64,15 @@ pub fn scan_folder(
 
         let processed = (i + 1) as u64;
         if processed % 10 == 0 || processed == total {
-            let _ = app.emit(
-                "scan://progress",
-                ScanProgress {
-                    folder_id,
-                    processed,
-                    total,
-                    current: path
-                        .file_name()
-                        .map(|n| n.to_string_lossy().into_owned())
-                        .unwrap_or_default(),
-                },
-            );
+            on_progress(ScanProgress {
+                folder_id,
+                processed,
+                total,
+                current: path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default(),
+            });
         }
     }
 

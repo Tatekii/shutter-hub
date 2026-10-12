@@ -32,6 +32,10 @@ pub fn list_albums(state: State<'_, AppState>) -> Result<Vec<AlbumDto>, String> 
 
 #[tauri::command]
 pub fn create_album(state: State<'_, AppState>, name: String) -> Result<AlbumDto, String> {
+    create_album_inner(&state, name)
+}
+
+pub fn create_album_inner(state: &AppState, name: String) -> Result<AlbumDto, String> {
     let conn = db::open_db(&state.db_path).map_err(to_str)?;
     let name = name.trim().to_string();
     if name.is_empty() {
@@ -56,6 +60,14 @@ pub fn delete_album(state: State<'_, AppState>, album_id: i64) -> Result<(), Str
 #[tauri::command]
 pub fn add_photos_to_album(
     state: State<'_, AppState>,
+    album_id: i64,
+    photo_ids: Vec<i64>,
+) -> Result<(), String> {
+    add_photos_to_album_inner(&state, album_id, photo_ids)
+}
+
+pub fn add_photos_to_album_inner(
+    state: &AppState,
     album_id: i64,
     photo_ids: Vec<i64>,
 ) -> Result<(), String> {

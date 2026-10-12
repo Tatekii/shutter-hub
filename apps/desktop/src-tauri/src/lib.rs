@@ -1,11 +1,11 @@
-mod commands;
-mod db;
-mod indexer;
-mod metadata;
-mod models;
-mod thumbs;
-mod volumes;
-mod xmp;
+pub mod commands;
+pub mod db;
+pub mod indexer;
+pub mod metadata;
+pub mod models;
+pub mod thumbs;
+pub mod volumes;
+pub mod xmp;
 
 use std::path::PathBuf;
 use tauri::Manager;

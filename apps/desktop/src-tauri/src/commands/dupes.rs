@@ -82,6 +82,10 @@ pub async fn compute_hashes(app: AppHandle, state: State<'_, AppState>) -> Resul
 
 #[tauri::command]
 pub fn list_dupes(state: State<'_, AppState>) -> Result<Vec<DupeGroup>, String> {
+    list_dupes_inner(&state)
+}
+
+pub fn list_dupes_inner(state: &AppState) -> Result<Vec<DupeGroup>, String> {
     let conn = db::open_db(&state.db_path).map_err(to_str)?;
 
     let hashes: Vec<String> = {
@@ -115,6 +119,10 @@ pub fn list_dupes(state: State<'_, AppState>) -> Result<Vec<DupeGroup>, String> 
 
 #[tauri::command]
 pub fn list_similar(state: State<'_, AppState>) -> Result<Vec<SimilarPair>, String> {
+    list_similar_inner(&state)
+}
+
+pub fn list_similar_inner(state: &AppState) -> Result<Vec<SimilarPair>, String> {
     let conn = db::open_db(&state.db_path).map_err(to_str)?;
 
     let hashed: Vec<(i64, i64)> = {
