@@ -110,7 +110,14 @@ function PhotoCard({ photo }: { photo: PhotoDto }) {
             {photo.flag === "pick" ? "✓" : "✕"}
           </span>
         )}
-        {photo.rating > 0 && <span className="rating-badge">{"★".repeat(photo.rating)}</span>}
+        {(photo.rating > 0 || photo.hasEdit) && (
+          <span className="card-badge-left">
+            {photo.rating > 0 && (
+              <span className="rating-badge-inline">{"★".repeat(photo.rating)}</span>
+            )}
+            {photo.hasEdit && <span className="edit-badge-inline">✎</span>}
+          </span>
+        )}
         {photo.colorLabel && (
           <span
             className="color-badge"

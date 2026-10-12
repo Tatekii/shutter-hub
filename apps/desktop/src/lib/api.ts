@@ -1,6 +1,7 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
+  Adjustments,
   AiDownloadProgress,
   AiJobDone,
   AiJobProgress,
@@ -91,6 +92,10 @@ export const exportPhotos = (req: ExportRequest) =>
   invoke<ExportResult>("export_photos", { req });
 export const renderCollage = (req: CollageRequest) =>
   invoke<CollageResult>("render_collage", { req });
+
+export const getEdit = (id: number) => invoke<Adjustments>("get_edit", { id });
+export const setEdit = (id: number, adj: Adjustments) =>
+  invoke<void>("set_edit", { id, adj });
 
 export const thumbUrl = (thumbPath: string | null) =>
   thumbPath ? convertFileSrc(thumbPath) : null;

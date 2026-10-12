@@ -491,6 +491,30 @@ body {
   padding: 1px 4px;
 }
 
+.card-badge-left {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  display: flex;
+  gap: 4px;
+}
+
+.rating-badge-inline {
+  font-size: 10px;
+  color: #f5c542;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.edit-badge-inline {
+  font-size: 10px;
+  color: var(--accent);
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
 .flag-badge {
   position: absolute;
   top: 4px;
@@ -1478,6 +1502,80 @@ kbd {
   border-radius: 3px;
   pointer-events: none;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+/* ---------- develop panel ---------- */
+
+.develop-panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 280px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 10;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.develop-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.develop-title {
+  font-weight: 600;
+  font-size: 13px;
+  flex: 1;
+}
+
+.develop-saved {
+  font-size: 11px;
+  color: var(--pick);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.develop-saved.on {
+  opacity: 1;
+}
+
+.develop-slider {
+  display: grid;
+  grid-template-columns: 64px 1fr 42px;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.develop-slider input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.develop-slider-value {
+  text-align: right;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+
+.develop-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.develop-hint {
+  font-size: 11px;
+  color: var(--text-dim);
 }
 
 /* ---------- ai ---------- */

@@ -28,6 +28,7 @@ export interface PhotoDto {
   mediaType: "photo" | "video";
   durationMs: number | null;
   liveMotion: string | null;
+  hasEdit: boolean;
 }
 
 export interface PhotoQuery {
@@ -180,6 +181,16 @@ export interface FaceDto {
   y: number;
   w: number;
   h: number;
+}
+
+export interface Adjustments {
+  exposure: number;
+  contrast: number;
+  highlights: number;
+  shadows: number;
+  temperature: number;
+  tint: number;
+  saturation: number;
 }
 
 export interface ExportRequest {

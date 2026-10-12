@@ -1,10 +1,18 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { COLOR_HEX, formatBytes, formatDuration, getViewerPreview, listFaces } from "../lib/api";
+import {
+  COLOR_HEX,
+  formatBytes,
+  formatDuration,
+  getEdit,
+  getViewerPreview,
+  listFaces,
+  setEdit,
+} from "../lib/api";
 import { useT } from "../lib/i18n";
 import { useApp } from "../lib/store";
-import type { FaceDto } from "../lib/types";
+import type { Adjustments, FaceDto } from "../lib/types";
 
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 8;
@@ -42,6 +50,11 @@ export function Viewer() {
     w: number;
     h: number;
   } | null>(null);
+  const [developOpen, setDevelopOpen] = useState(false);
+  const [editAdj, setEditAdj] = useState<Adjustments | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [savedTick, setSavedTick] = useState(false);
+  const saveTimer = useRef<number | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
@@ -73,7 +86,51 @@ export function Viewer() {
     return () => {
       cancelled = true;
     };
+  }, [photo?.id, reloadKey]);
+
+  // 载入当前照片的调色参数
+  useEffect(() => {
+    if (!photo || photo.mediaType === "video") {
+      setEditAdj(null);
+      return;
+    }
+    let cancelled = false;
+    void getEdit(photo.id)
+      .then((adj) => {
+        if (!cancelled) setEditAdj(adj);
+      })
+      .catch(() => {
+        if (!cancelled) setEditAdj(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [photo?.id]);
+
+  // 防抖自动保存调色参数（500ms 空闲），保存后刷新预览
+  const scheduleSave = (next: Adjustments) => {
+    if (saveTimer.current != null) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => {
+      saveTimer.current = null;
+      if (!photo) return;
+      void setEdit(photo.id, next)
+        .then(() => {
+          setReloadKey((k) => k + 1);
+          setSavedTick(true);
+          window.setTimeout(() => setSavedTick(false), 1200);
+        })
+        .catch((e) => useApp.getState().setError(String(e)));
+    }, 500);
+  };
+
+  const updateAdj = (patch: Partial<Adjustments>) => {
+    setEditAdj((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...patch };
+      scheduleSave(next);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const el = canvasRef.current;
@@ -164,6 +221,10 @@ export function Viewer() {
         toggleMode();
         return;
       }
+      if (e.key.toLowerCase() === "d") {
+        setDevelopOpen((v) => !v);
+        return;
+      }
       const n = parseInt(e.key, 10);
       if (n >= 1 && n <= 5) {
         void doCull(() => rateSelected(n));
@@ -205,6 +266,14 @@ export function Viewer() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [photo?.id, autoAdvance]);
+
+  // 组件卸载清理防抖计时器
+  useEffect(
+    () => () => {
+      if (saveTimer.current != null) window.clearTimeout(saveTimer.current);
+    },
+    [],
+  );
 
   if (viewerId == null || !photo) return null;
 
@@ -311,6 +380,97 @@ export function Viewer() {
         )}
       </div>
 
+      {developOpen && editAdj && photo.mediaType !== "video" && (
+        <div className="develop-panel">
+          <div className="develop-header">
+            <span className="develop-title">🎚 {t("develop.title")}</span>
+            <span className={`develop-saved ${savedTick ? "on" : ""}`}>
+              {savedTick ? t("develop.saved") : ""}
+            </span>
+            <button className="icon-btn" onClick={() => setDevelopOpen(false)}>
+              ×
+            </button>
+          </div>
+          <DevelopSlider
+            label={t("develop.exposure")}
+            value={editAdj.exposure}
+            min={-5}
+            max={5}
+            step={0.05}
+            onChange={(v) => updateAdj({ exposure: v })}
+          />
+          <DevelopSlider
+            label={t("develop.contrast")}
+            value={editAdj.contrast}
+            min={-100}
+            max={100}
+            step={1}
+            onChange={(v) => updateAdj({ contrast: v })}
+          />
+          <DevelopSlider
+            label={t("develop.highlights")}
+            value={editAdj.highlights}
+            min={-100}
+            max={100}
+            step={1}
+            onChange={(v) => updateAdj({ highlights: v })}
+          />
+          <DevelopSlider
+            label={t("develop.shadows")}
+            value={editAdj.shadows}
+            min={-100}
+            max={100}
+            step={1}
+            onChange={(v) => updateAdj({ shadows: v })}
+          />
+          <DevelopSlider
+            label={t("develop.temperature")}
+            value={editAdj.temperature}
+            min={-100}
+            max={100}
+            step={1}
+            onChange={(v) => updateAdj({ temperature: v })}
+          />
+          <DevelopSlider
+            label={t("develop.tint")}
+            value={editAdj.tint}
+            min={-100}
+            max={100}
+            step={1}
+            onChange={(v) => updateAdj({ tint: v })}
+          />
+          <DevelopSlider
+            label={t("develop.saturation")}
+            value={editAdj.saturation}
+            min={-100}
+            max={100}
+            step={1}
+            onChange={(v) => updateAdj({ saturation: v })}
+          />
+          <div className="develop-actions">
+            <button
+              className="btn"
+              onClick={() => {
+                const reset: Adjustments = {
+                  exposure: 0,
+                  contrast: 0,
+                  highlights: 0,
+                  shadows: 0,
+                  temperature: 0,
+                  tint: 0,
+                  saturation: 0,
+                };
+                setEditAdj(reset);
+                scheduleSave(reset);
+              }}
+            >
+              {t("develop.reset")}
+            </button>
+          </div>
+          <div className="develop-hint">{t("develop.hint")}</div>
+        </div>
+      )}
+
       <div className="viewer-bar">
         <span className="viewer-counter">
           {index + 1} / {photos.length}
@@ -347,6 +507,15 @@ export function Viewer() {
             ⚡ {t("viewer.playLive")}
           </button>
         )}
+        {photo.mediaType !== "video" && (
+          <button
+            className={`btn ${developOpen ? "btn-active" : ""}`}
+            title={t("develop.title")}
+            onClick={() => setDevelopOpen((v) => !v)}
+          >
+            🎚 {t("viewer.develop")}
+          </button>
+        )}
         <button
           className={`btn ${autoAdvance ? "btn-active" : ""}`}
           title={t("viewer.autoAdvanceTitle")}
@@ -359,5 +528,38 @@ export function Viewer() {
         </button>
       </div>
     </div>
+  );
+}
+
+function DevelopSlider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+}) {
+  const decimals = step >= 1 ? 0 : 2;
+  return (
+    <label className="develop-slider" title="双击归零">
+      <span className="develop-slider-label">{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        onDoubleClick={() => onChange(0)}
+      />
+      <span className="develop-slider-value">{value.toFixed(decimals)}</span>
+    </label>
   );
 }

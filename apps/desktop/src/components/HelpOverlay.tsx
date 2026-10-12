@@ -15,6 +15,7 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
     ["⌘/Ctrl + A", t("help.selectAll")],
     ["看图内 1-5 / P / X", t("help.autoAdvance")],
     ["看图内 Z", t("help.zoomToggle")],
+    ["看图内 D", t("help.develop")],
     ["看图内 滚轮 / 拖拽", t("help.wheelDrag")],
     ["Esc", t("help.escape")],
     ["?", t("help.help")],

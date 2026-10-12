@@ -190,6 +190,7 @@ const STRINGS: Record<string, { zh: string; en: string }> = {
     en: "Auto-advance after rating (toggleable)",
   },
   "help.zoomToggle": { zh: "适应窗口 / 1:1 切换", en: "Fit / 1:1 toggle" },
+  "help.develop": { zh: "调色面板", en: "Develop panel" },
   "help.wheelDrag": { zh: "缩放 / 平移", en: "Zoom / pan" },
   "help.escape": {
     zh: "退出看图 / 关闭面板 / 清除选择",
@@ -283,7 +284,24 @@ const STRINGS: Record<string, { zh: string; en: string }> = {
   "viewer.rate": { zh: "评分 {n}", en: "Rating {n}" },
   "viewer.play": { zh: "▶ 在系统播放器中打开", en: "▶ Open in system player" },
   "viewer.playLive": { zh: "播放实况", en: "Play motion" },
+  "viewer.develop": { zh: "调色", en: "Develop" },
   "viewer.videoHint": { zh: "视频不支持内置播放", en: "In-app video playback is not supported" },
+
+  // develop
+  "develop.title": { zh: "调色", en: "Develop" },
+  "develop.exposure": { zh: "曝光", en: "Exposure" },
+  "develop.contrast": { zh: "对比", en: "Contrast" },
+  "develop.highlights": { zh: "高光", en: "Highlights" },
+  "develop.shadows": { zh: "阴影", en: "Shadows" },
+  "develop.temperature": { zh: "色温", en: "Temperature" },
+  "develop.tint": { zh: "色调", en: "Tint" },
+  "develop.saturation": { zh: "饱和度", en: "Saturation" },
+  "develop.reset": { zh: "重置", en: "Reset" },
+  "develop.saved": { zh: "已保存", en: "Saved" },
+  "develop.hint": {
+    zh: "自动保存到 XMP（crs），Lightroom 可直接读取",
+    en: "Auto-saves to XMP (crs), readable by Lightroom",
+  },
 
   // app
   "app.volumeDetected": { zh: "💾 检测到存储设备（{n}）", en: "💾 Storage devices detected ({n})" },
