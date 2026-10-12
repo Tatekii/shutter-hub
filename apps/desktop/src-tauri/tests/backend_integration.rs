@@ -279,6 +279,74 @@ fn video_files_are_indexed_without_ffmpeg() {
     std::fs::remove_dir_all(ctx.dir.parent().unwrap()).ok();
 }
 
+#[test]
+fn export_photos_batch_resize_and_naming() {
+    let _guard = LOCK.lock().unwrap();
+    let ctx = setup("export");
+    let out_dir = ctx.dir.parent().unwrap().join("exported");
+
+    make_jpeg(&ctx.dir.join("IMG_0001.jpg"), 640, 480, 11);
+    make_jpeg(&ctx.dir.join("IMG_0002.jpg"), 300, 200, 12);
+    scan(&ctx);
+
+    let state = setup_state(&ctx);
+    let conn = db::open_db(&ctx.db).unwrap();
+    let ids: Vec<i64> = {
+        let mut stmt = conn
+            .prepare("SELECT id FROM photos ORDER BY filename")
+            .unwrap();
+        let rows = stmt.query_map([], |r| r.get(0)).unwrap();
+        rows.collect::<Result<Vec<_>, _>>().unwrap()
+    };
+
+    let req = desktop_lib::models::ExportRequest {
+        photo_ids: ids.clone(),
+        target_dir: out_dir.to_string_lossy().into_owned(),
+        format: "jpeg".into(),
+        quality: 85,
+        max_dimension: Some(100),
+        filename_suffix: "_edit".into(),
+    };
+    let mut progress_count = 0;
+    let result =
+        desktop_lib::commands::export_photos_inner(&state, &req, |_| progress_count += 1).unwrap();
+    assert_eq!(result.exported, 2);
+    assert!(result.failed.is_empty(), "no failures: {:?}", result.failed);
+    assert_eq!(progress_count, 2, "progress callback per photo");
+
+    // 长边缩到 100，文件名带后缀
+    let exported: Vec<_> = std::fs::read_dir(&out_dir)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert!(exported.contains(&"IMG_0001_edit.jpg".to_string()));
+    let img = image::open(out_dir.join("IMG_0001_edit.jpg")).unwrap();
+    assert_eq!(img.width().max(img.height()), 100);
+
+    // 再导一次：冲突避让
+    let result2 =
+        desktop_lib::commands::export_photos_inner(&state, &req, |_| {}).unwrap();
+    assert_eq!(result2.exported, 2);
+    assert!(out_dir.join("IMG_0001_edit-1.jpg").exists());
+
+    // PNG 格式 + 无效 id → 失败清单
+    let req_png = desktop_lib::models::ExportRequest {
+        photo_ids: vec![ids[0], 999_999],
+        target_dir: out_dir.to_string_lossy().into_owned(),
+        format: "png".into(),
+        quality: 90,
+        max_dimension: None,
+        filename_suffix: "".into(),
+    };
+    let result3 =
+        desktop_lib::commands::export_photos_inner(&state, &req_png, |_| {}).unwrap();
+    assert_eq!(result3.exported, 1);
+    assert_eq!(result3.failed.len(), 1);
+    assert!(out_dir.join("IMG_0001.png").exists());
+
+    std::fs::remove_dir_all(ctx.dir.parent().unwrap()).ok();
+}
+
 fn touch(path: &Path) {
     let bytes = std::fs::read(path).unwrap();
     std::thread::sleep(std::time::Duration::from_millis(5));

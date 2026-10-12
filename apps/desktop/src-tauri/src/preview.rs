@@ -41,25 +41,7 @@ pub fn ensure(preview_dir: &Path, photo_id: i64, src: &Path) -> Result<Option<Pa
     // 其余格式（PNG / WebP / TIFF 等）：解码后重编码为 JPEG。
     match image::open(src) {
         Ok(img) => {
-            // RGBA8（带透明通道的 PNG）合成到白底，避免 JPEG 编码失败
-            let img = match img {
-                image::DynamicImage::ImageRgba8(buf) => {
-                    let mut white = image::RgbImage::from_pixel(
-                        buf.width(),
-                        buf.height(),
-                        image::Rgb([255, 255, 255]),
-                    );
-                    for (x, y, p) in buf.enumerate_pixels() {
-                        let a = p[3] as f32 / 255.0;
-                        let px = white.get_pixel_mut(x, y);
-                        px[0] = (p[0] as f32 * a + 255.0 * (1.0 - a)) as u8;
-                        px[1] = (p[1] as f32 * a + 255.0 * (1.0 - a)) as u8;
-                        px[2] = (p[2] as f32 * a + 255.0 * (1.0 - a)) as u8;
-                    }
-                    image::DynamicImage::ImageRgb8(white)
-                }
-                other => image::DynamicImage::ImageRgb8(other.into_rgb8()),
-            };
+            let img = flatten_to_rgb(img);
             let file = std::fs::File::create(&out)
                 .with_context(|| format!("create preview {}", out.display()))?;
             let mut writer = BufWriter::new(file);
@@ -68,6 +50,29 @@ pub fn ensure(preview_dir: &Path, photo_id: i64, src: &Path) -> Result<Option<Pa
             Ok(Some(out))
         }
         Err(_) => Ok(None),
+    }
+}
+
+/// RGBA8（带透明通道）合成到白底，其余色彩类型转为 RGB8；
+/// JPEG 编码前置处理，避免编码失败或透明变黑。
+pub fn flatten_to_rgb(img: image::DynamicImage) -> image::DynamicImage {
+    match img {
+        image::DynamicImage::ImageRgba8(buf) => {
+            let mut white = image::RgbImage::from_pixel(
+                buf.width(),
+                buf.height(),
+                image::Rgb([255, 255, 255]),
+            );
+            for (x, y, p) in buf.enumerate_pixels() {
+                let a = p[3] as f32 / 255.0;
+                let px = white.get_pixel_mut(x, y);
+                px[0] = (p[0] as f32 * a + 255.0 * (1.0 - a)) as u8;
+                px[1] = (p[1] as f32 * a + 255.0 * (1.0 - a)) as u8;
+                px[2] = (p[2] as f32 * a + 255.0 * (1.0 - a)) as u8;
+            }
+            image::DynamicImage::ImageRgb8(white)
+        }
+        other => image::DynamicImage::ImageRgb8(other.into_rgb8()),
     }
 }
 

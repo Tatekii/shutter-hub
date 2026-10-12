@@ -243,3 +243,37 @@ pub struct FaceDto {
     pub w: f64,
     pub h: f64,
 }
+
+// ---------- 出图导出 ----------
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportRequest {
+    pub photo_ids: Vec<i64>,
+    pub target_dir: String,
+    /// "jpeg" | "png" | "webp"
+    pub format: String,
+    /// 1-100，JPEG / WebP 有效
+    pub quality: u8,
+    /// 长边像素上限（None = 原尺寸）
+    pub max_dimension: Option<u32>,
+    /// 文件名后缀，如 "_edit"
+    pub filename_suffix: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportProgress {
+    pub processed: u64,
+    pub total: u64,
+    pub current: String,
+}
+
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportResult {
+    pub exported: u64,
+    pub failed: Vec<String>,
+    pub total_bytes: u64,
+    pub target_dir: String,
+}
