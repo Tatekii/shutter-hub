@@ -1,6 +1,7 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { openPath } from "@tauri-apps/plugin-opener";
 import { useEffect, useRef, useState } from "react";
-import { COLOR_HEX, formatBytes, getViewerPreview } from "../lib/api";
+import { COLOR_HEX, formatBytes, formatDuration, getViewerPreview } from "../lib/api";
 import { useT } from "../lib/i18n";
 import { useApp } from "../lib/store";
 
@@ -40,7 +41,7 @@ export function Viewer() {
     if (viewerId != null && !photo) closeViewer();
   }, [viewerId, photo, closeViewer]);
 
-  // 切换照片时重置显示状态并懒加载全尺寸预览
+  // 切换照片时重置显示状态并懒加载全尺寸预览（视频交给系统播放器）
   useEffect(() => {
     if (!photo) return;
     let cancelled = false;
@@ -50,6 +51,7 @@ export function Viewer() {
     setMode("fit");
     setZoom(1);
     setPan({ x: 0, y: 0 });
+    if (photo.mediaType === "video") return;
     void getViewerPreview(photo.id)
       .then((path) => {
         if (cancelled) return;
@@ -169,6 +171,7 @@ export function Viewer() {
   if (photo.shutterSpeed) exif.push(photo.shutterSpeed);
   if (photo.iso != null) exif.push(`ISO ${photo.iso}`);
   if (photo.width && photo.height) exif.push(`${photo.width}×${photo.height}`);
+  if (photo.durationMs != null) exif.push(formatDuration(photo.durationMs));
   exif.push(formatBytes(photo.size));
 
   const dispW = mode === "zoom" && natural ? natural.w * zoom : 0;
@@ -208,30 +211,42 @@ export function Viewer() {
         onPointerUp={() => setDrag(null)}
         onPointerCancel={() => setDrag(null)}
       >
-        {url && !failed && (
-          <img
-            className={`viewer-img ${mode === "zoom" ? "viewer-zoom" : ""}`}
-            src={url}
-            alt={photo.filename}
-            draggable={false}
-            style={
-              mode === "zoom" && natural
-                ? {
-                    left: canvas.w / 2 + cx,
-                    top: canvas.h / 2 + cy,
-                    width: dispW,
-                    height: dispH,
-                  }
-                : undefined
-            }
-            onLoad={(e) => {
-              const img = e.currentTarget;
-              setNatural({ w: img.naturalWidth, h: img.naturalHeight });
-            }}
-          />
+        {photo.mediaType === "video" ? (
+          <div className="viewer-video">
+            <div className="viewer-video-icon">▶</div>
+            <div className="viewer-status">{t("viewer.videoHint")}</div>
+            <button className="btn btn-primary" onClick={() => void openPath(photo.path)}>
+              {t("viewer.play")}
+            </button>
+          </div>
+        ) : (
+          <>
+            {url && !failed && (
+              <img
+                className={`viewer-img ${mode === "zoom" ? "viewer-zoom" : ""}`}
+                src={url}
+                alt={photo.filename}
+                draggable={false}
+                style={
+                  mode === "zoom" && natural
+                    ? {
+                        left: canvas.w / 2 + cx,
+                        top: canvas.h / 2 + cy,
+                        width: dispW,
+                        height: dispH,
+                      }
+                    : undefined
+                }
+                onLoad={(e) => {
+                  const img = e.currentTarget;
+                  setNatural({ w: img.naturalWidth, h: img.naturalHeight });
+                }}
+              />
+            )}
+            {!url && !failed && <div className="viewer-status">{t("viewer.loading")}</div>}
+            {failed && <div className="viewer-status">{t("viewer.unsupported")}</div>}
+          </>
         )}
-        {!url && !failed && <div className="viewer-status">{t("viewer.loading")}</div>}
-        {failed && <div className="viewer-status">{t("viewer.unsupported")}</div>}
       </div>
 
       <div className="viewer-bar">

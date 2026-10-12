@@ -1,6 +1,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef, useState } from "react";
-import { thumbUrl, COLOR_HEX } from "../lib/api";
+import { formatDuration, thumbUrl, COLOR_HEX } from "../lib/api";
+import { useT } from "../lib/i18n";
 import { useApp } from "../lib/store";
 import type { PhotoDto } from "../lib/types";
 
@@ -70,6 +71,7 @@ export function PhotoGrid({ photos }: { photos: PhotoDto[] }) {
 }
 
 function PhotoCard({ photo }: { photo: PhotoDto }) {
+  const t = useT();
   const url = thumbUrl(photo.thumbPath);
   const selected = useApp((s) => s.selectedIds.has(photo.id));
   const inspectorId = useApp((s) => s.inspectorId);
@@ -96,6 +98,11 @@ function PhotoCard({ photo }: { photo: PhotoDto }) {
               <path d="m3 17 5-5 4 4 3-3 6 6" />
             </svg>
           </div>
+        )}
+        {photo.mediaType === "video" && (
+          <span className="video-badge">
+            ▶ {photo.durationMs != null ? formatDuration(photo.durationMs) : t("filter.video")}
+          </span>
         )}
         {photo.flag && (
           <span className={`flag-badge flag-${photo.flag}`}>

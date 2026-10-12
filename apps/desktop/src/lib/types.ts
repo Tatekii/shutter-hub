@@ -25,6 +25,8 @@ export interface PhotoDto {
   rating: number;
   colorLabel: string;
   flag: string;
+  mediaType: "photo" | "video";
+  durationMs: number | null;
 }
 
 export interface PhotoQuery {
@@ -42,6 +44,7 @@ export interface PhotoQuery {
   minRating?: number;
   colorLabel?: string;
   flag?: string;
+  mediaType?: "photo" | "video";
   albumId?: number;
   tagId?: number;
 }
@@ -94,6 +97,7 @@ export interface CardPhotoDto {
   cameraModel: string | null;
   takenAt: string | null;
   thumbPath: string | null;
+  mediaType: "photo" | "video";
 }
 
 export interface IngestProgress {

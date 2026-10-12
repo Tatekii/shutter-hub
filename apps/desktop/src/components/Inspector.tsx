@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { COLOR_HEX, formatBytes, thumbUrl } from "../lib/api";
+import { COLOR_HEX, formatBytes, formatDuration, thumbUrl } from "../lib/api";
 import { useT } from "../lib/i18n";
 import { useApp } from "../lib/store";
 
@@ -20,10 +20,19 @@ export function Inspector() {
   const url = thumbUrl(photo.thumbPath);
   const unknown = t("inspector.unknown");
 
-  const rows: Array<[string, string]> = [
+  const rows: Array<[string, string]> = [];
+  if (photo.mediaType === "video") {
+    rows.push([t("inspector.rowType"), t("filter.video")]);
+  }
+  rows.push(
     [t("inspector.rowFilename"), photo.filename],
     [t("inspector.rowTaken"), photo.takenAt ?? unknown],
     [t("inspector.rowDims"), photo.width ? `${photo.width} × ${photo.height}` : unknown],
+  );
+  if (photo.mediaType === "video" && photo.durationMs != null) {
+    rows.push([t("inspector.rowDuration"), formatDuration(photo.durationMs)]);
+  }
+  rows.push(
     [t("inspector.rowSize"), formatBytes(photo.size)],
     [
       t("inspector.rowCamera"),
@@ -35,7 +44,7 @@ export function Inspector() {
     [t("inspector.rowShutter"), photo.shutterSpeed ?? unknown],
     [t("inspector.rowIso"), photo.iso?.toString() ?? unknown],
     [t("inspector.rowPath"), photo.path],
-  ];
+  );
 
   return (
     <aside className="inspector">

@@ -513,6 +513,17 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
+.video-badge {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  font-size: 10px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
 /* ---------- inspector ---------- */
 
 .inspector {
@@ -1161,6 +1172,26 @@ kbd {
 .viewer-status {
   color: var(--text-dim);
   font-size: 14px;
+}
+
+.viewer-video {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.viewer-video-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px solid var(--text-dim);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  padding-left: 6px;
 }
 
 .viewer-bar {

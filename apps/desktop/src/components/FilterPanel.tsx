@@ -138,6 +138,18 @@ export function FilterPanel({ onClose }: { onClose: () => void }) {
             <option value="reject">{t("filter.reject")}</option>
           </select>
         </label>
+
+        <label>
+          {t("filter.mediaType")}
+          <select
+            value={query.mediaType ?? ""}
+            onChange={(e) => set("mediaType", e.target.value || undefined)}
+          >
+            <option value="">{t("filter.any")}</option>
+            <option value="photo">{t("filter.photo")}</option>
+            <option value="video">{t("filter.video")}</option>
+          </select>
+        </label>
       </div>
 
       <div className="filter-actions">

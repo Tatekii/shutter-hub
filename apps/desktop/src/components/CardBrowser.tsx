@@ -168,6 +168,7 @@ export function CardBrowser() {
                       ) : (
                         <div className="photo-card-placeholder" />
                       )}
+                      {p.mediaType === "video" && <span className="video-badge">▶</span>}
                       <span className={`card-check ${marked ? "on" : ""}`}>
                         {marked ? "✓" : ""}
                       </span>
