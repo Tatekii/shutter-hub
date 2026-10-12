@@ -34,6 +34,8 @@ pub struct PhotoDto {
     /// "photo" | "video"
     pub media_type: String,
     pub duration_ms: Option<i64>,
+    /// Live 图的运动片段（同目录同名 MOV/MP4）绝对路径
+    pub live_motion: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]

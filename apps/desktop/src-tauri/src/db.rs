@@ -113,6 +113,10 @@ const MIGRATIONS: &[&str] = &[
         PRIMARY KEY (photo_id, kind)
     );
     "#,
+    // v8: Live 图（同目录同名的 图像 + 运动片段 配对）
+    r#"
+    ALTER TABLE photos ADD COLUMN live_motion TEXT;
+    "#,
 ];
 
 pub fn open_db(db_path: &Path) -> Result<Connection> {

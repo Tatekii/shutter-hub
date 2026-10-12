@@ -54,7 +54,13 @@ where
     F: Fn(ScanProgress),
 {
     let paths = collect_images(folder_path);
-    let total = paths.len() as u64;
+    // Live 图配对：同目录同名的图像 + 运动片段；片段不单独索引
+    let (live_pairs, paired_motions) = detect_live_pairs(&paths);
+    let indexable: Vec<&std::path::PathBuf> = paths
+        .iter()
+        .filter(|p| !paired_motions.contains(*p))
+        .collect();
+    let total = indexable.len() as u64;
 
     let conn = db::open_db(db_path)?;
     let counters = Counters {
@@ -65,15 +71,16 @@ where
 
     let mut need_thumbs: Vec<(i64, std::path::PathBuf)> = Vec::new();
 
-    for (i, path) in paths.iter().enumerate() {
-        match index_one(&conn, folder_id, path)? {
+    for (i, path) in indexable.iter().enumerate() {
+        let live_motion = live_pairs.get(*path).map(|p| p.as_path());
+        match index_one(&conn, folder_id, path, live_motion)? {
             IndexOutcome::Added(photo_id) => {
                 counters.added.fetch_add(1, Ordering::Relaxed);
-                need_thumbs.push((photo_id, path.clone()));
+                need_thumbs.push((photo_id, (*path).clone()));
             }
             IndexOutcome::Updated(photo_id) => {
                 counters.updated.fetch_add(1, Ordering::Relaxed);
-                need_thumbs.push((photo_id, path.clone()));
+                need_thumbs.push((photo_id, (*path).clone()));
             }
             IndexOutcome::Skipped => {
                 counters.skipped.fetch_add(1, Ordering::Relaxed);
@@ -129,6 +136,7 @@ fn index_one(
     conn: &rusqlite::Connection,
     folder_id: i64,
     path: &Path,
+    live_motion: Option<&Path>,
 ) -> Result<IndexOutcome> {
     let meta = std::fs::metadata(path)?;
     let size = meta.len() as i64;
@@ -145,9 +153,11 @@ fn index_one(
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default();
 
-    let existing: Option<(i64, i64, i64, i64, String, String)> = conn
+    let live_motion_str = live_motion.map(|p| p.to_string_lossy().into_owned());
+
+    let existing: Option<(i64, i64, i64, i64, String, String, Option<String>)> = conn
         .query_row(
-            "SELECT id, size, mtime_ms, rating, color_label, flag FROM photos WHERE path = ?1",
+            "SELECT id, size, mtime_ms, rating, color_label, flag, live_motion FROM photos WHERE path = ?1",
             rusqlite::params![path_str],
             |row| {
                 Ok((
@@ -157,6 +167,7 @@ fn index_one(
                     row.get(3)?,
                     row.get(4)?,
                     row.get(5)?,
+                    row.get(6)?,
                 ))
             },
         )
@@ -186,10 +197,10 @@ fn index_one(
     };
     let sidecar = xmp::read(path);
 
-    let outcome = if let Some((id, old_size, old_mtime, old_rating, old_label, old_flag)) =
+    let outcome = if let Some((id, old_size, old_mtime, old_rating, old_label, old_flag, old_live)) =
         existing
     {
-        if old_size == size && old_mtime == mtime_ms {
+        if old_size == size && old_mtime == mtime_ms && old_live == live_motion_str {
             IndexOutcome::Skipped
         } else {
             let rating = sidecar
@@ -210,8 +221,8 @@ fn index_one(
                  camera_make = ?5, camera_model = ?6, lens_model = ?7, focal_length = ?8,
                  aperture = ?9, shutter_speed = ?10, iso = ?11, taken_at = ?12,
                  rating = ?13, color_label = ?14, flag = ?15,
-                 media_type = ?16, duration_ms = ?17,
-                 indexed_at = datetime('now') WHERE id = ?18",
+                 media_type = ?16, duration_ms = ?17, live_motion = ?18,
+                 indexed_at = datetime('now') WHERE id = ?19",
                 rusqlite::params![
                     size,
                     mtime_ms,
@@ -230,6 +241,7 @@ fn index_one(
                     flag,
                     media_type,
                     video_info.duration_ms,
+                    live_motion_str,
                     id
                 ],
             )?;
@@ -249,8 +261,8 @@ fn index_one(
         conn.execute(
             "INSERT INTO photos (folder_id, path, filename, size, mtime_ms, width, height,
              camera_make, camera_model, lens_model, focal_length, aperture, shutter_speed,
-             iso, taken_at, rating, color_label, flag, media_type, duration_ms)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
+             iso, taken_at, rating, color_label, flag, media_type, duration_ms, live_motion)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
             rusqlite::params![
                 folder_id,
                 path_str,
@@ -272,6 +284,7 @@ fn index_one(
                 flag,
                 media_type,
                 video_info.duration_ms,
+                live_motion_str,
             ],
         )?;
         IndexOutcome::Added(conn.last_insert_rowid())
@@ -293,6 +306,46 @@ fn sync_fts(conn: &rusqlite::Connection, photo_id: i64) -> Result<()> {
         [photo_id],
     )?;
     Ok(())
+}
+
+/// Live 图配对：同目录、同文件名（不含扩展名）的 图像 + 视频。
+/// 返回 (图像路径 → 运动片段路径, 已配对片段集合)。
+pub fn detect_live_pairs(
+    paths: &[std::path::PathBuf],
+) -> (
+    std::collections::HashMap<std::path::PathBuf, std::path::PathBuf>,
+    std::collections::HashSet<std::path::PathBuf>,
+) {
+    use std::collections::{HashMap, HashSet};
+
+    let mut images: HashMap<(std::path::PathBuf, String), &std::path::PathBuf> = HashMap::new();
+    let mut videos: HashMap<(std::path::PathBuf, String), &std::path::PathBuf> = HashMap::new();
+
+    for path in paths {
+        let Some(kind) = classify(path) else { continue };
+        let Some(stem) = path.file_stem().map(|s| s.to_string_lossy().to_lowercase()) else {
+            continue;
+        };
+        let dir = path.parent().unwrap_or(Path::new("")).to_path_buf();
+        match kind {
+            MediaKind::Photo => {
+                images.insert((dir, stem), path);
+            }
+            MediaKind::Video => {
+                videos.insert((dir, stem), path);
+            }
+        }
+    }
+
+    let mut pairs = HashMap::new();
+    let mut motions = HashSet::new();
+    for (key, image) in &images {
+        if let Some(video) = videos.get(key) {
+            pairs.insert((*image).clone(), (*video).clone());
+            motions.insert((*video).clone());
+        }
+    }
+    (pairs, motions)
 }
 
 fn collect_images(root: &Path) -> Vec<std::path::PathBuf> {

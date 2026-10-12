@@ -10,7 +10,7 @@ use tauri_plugin_dialog::DialogExt;
 
 pub(crate) const PHOTO_COLUMNS: &str = "id, folder_id, path, filename, size, width, height, camera_make,
     camera_model, lens_model, focal_length, aperture, shutter_speed, iso, taken_at, has_thumb,
-    rating, color_label, flag, media_type, duration_ms";
+    rating, color_label, flag, media_type, duration_ms, live_motion";
 
 #[tauri::command]
 pub async fn add_folder(
@@ -493,6 +493,7 @@ pub fn row_to_photo(
         flag: row.get("flag")?,
         media_type: row.get("media_type")?,
         duration_ms: row.get("duration_ms")?,
+        live_motion: row.get("live_motion")?,
     })
 }
 

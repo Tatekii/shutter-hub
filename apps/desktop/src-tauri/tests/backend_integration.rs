@@ -71,7 +71,7 @@ fn build_query_sql(q: PhotoQuery) -> (String, Vec<Box<dyn rusqlite::ToSql>>) {
     let mut sql = String::from(
         "SELECT id, folder_id, path, filename, size, width, height, camera_make, camera_model,
          lens_model, focal_length, aperture, shutter_speed, iso, taken_at, has_thumb,
-         rating, color_label, flag, media_type, duration_ms FROM photos",
+         rating, color_label, flag, media_type, duration_ms, live_motion FROM photos",
     );
     let mut clauses: Vec<String> = Vec::new();
     let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
@@ -385,6 +385,59 @@ fn collage_render_writes_grid_jpeg() {
 
     let img = image::open(&result.path).unwrap();
     assert_eq!((img.width(), img.height()), (result.width, result.height));
+
+    std::fs::remove_dir_all(ctx.dir.parent().unwrap()).ok();
+}
+
+#[test]
+fn live_photo_pairing_hides_motion_clip() {
+    let _guard = LOCK.lock().unwrap();
+    let ctx = setup("live");
+
+    make_jpeg(&ctx.dir.join("IMG_0100.jpg"), 200, 200, 31);
+    std::fs::write(ctx.dir.join("IMG_0100.mov"), b"motion bytes").unwrap();
+    make_jpeg(&ctx.dir.join("IMG_0101.jpg"), 200, 200, 32);
+    std::fs::write(ctx.dir.join("CLIP.mov"), b"standalone video").unwrap();
+
+    let stats = scan(&ctx);
+    assert_eq!(stats.total, 3, "paired motion excluded from indexable count");
+    assert_eq!(stats.added, 3);
+
+    let conn = db::open_db(&ctx.db).unwrap();
+    let live: Option<String> = conn
+        .query_row(
+            "SELECT live_motion FROM photos WHERE filename = 'IMG_0100.jpg'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(
+        live.as_deref().unwrap_or("").ends_with("IMG_0100.mov"),
+        "motion path attached: {live:?}"
+    );
+
+    let paired_indexed: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM photos WHERE filename = 'IMG_0100.mov'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(paired_indexed, 0, "paired motion is not indexed standalone");
+
+    let plain: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM photos WHERE filename = 'CLIP.mov'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(plain, 1, "unpaired video still indexed");
+
+    // 重扫（无变化）应全部跳过
+    let stats2 = scan(&ctx);
+    assert_eq!(stats2.added, 0);
+    assert_eq!(stats2.skipped + stats2.updated, 3);
 
     std::fs::remove_dir_all(ctx.dir.parent().unwrap()).ok();
 }
