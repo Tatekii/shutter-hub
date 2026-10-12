@@ -1381,6 +1381,77 @@ kbd {
   color: var(--pick);
 }
 
+/* ---------- collage dialog ---------- */
+
+.collage-dialog {
+  width: 720px;
+}
+
+.collage-body {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.collage-preview {
+  display: grid;
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.collage-cell {
+  overflow: hidden;
+  background: rgba(127, 127, 127, 0.25);
+  min-width: 0;
+  min-height: 0;
+}
+
+.collage-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.collage-options {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.collage-bg-row {
+  display: flex;
+  gap: 8px;
+}
+
+.collage-bg {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  padding: 0;
+}
+
+.collage-bg.on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(224, 164, 88, 0.35);
+}
+
+.collage-result-path {
+  font-size: 12px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
 .viewer-flag {
   font-size: 11px;
   padding: 1px 6px;

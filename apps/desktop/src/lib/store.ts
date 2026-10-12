@@ -7,6 +7,8 @@ import type {
   AiStatus,
   AlbumDto,
   CardPhotoDto,
+  CollageRequest,
+  CollageResult,
   DupeGroup,
   ExportProgress,
   ExportRequest,
@@ -70,6 +72,10 @@ interface AppState {
   exportIds: number[];
   exportProgress: ExportProgress | null;
   exportResult: ExportResult | null;
+  collageOpen: boolean;
+  collageIds: number[];
+  collageBusy: boolean;
+  collageResult: CollageResult | null;
 
   init: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -118,6 +124,9 @@ interface AppState {
   closeExport: () => void;
   runExport: (req: ExportRequest) => Promise<void>;
   setExportProgress: (p: ExportProgress | null) => void;
+  openCollage: (ids: number[]) => void;
+  closeCollage: () => void;
+  runCollage: (req: CollageRequest) => Promise<void>;
   setAiDownload: (p: AiDownloadProgress | null) => void;
   setAiProgress: (p: AiJobProgress | null) => void;
   setError: (e: string | null) => void;
@@ -180,6 +189,10 @@ export const useApp = create<AppState>((set, get) => ({
   exportIds: [],
   exportProgress: null,
   exportResult: null,
+  collageOpen: false,
+  collageIds: [],
+  collageBusy: false,
+  collageResult: null,
 
   init: async () => {
     // 纯浏览器调试（pnpm dev）：无 Tauri IPC，仅渲染 UI
@@ -592,6 +605,19 @@ export const useApp = create<AppState>((set, get) => ({
     }
   },
   setExportProgress: (p) => set({ exportProgress: p }),
+
+  openCollage: (ids) =>
+    set({ collageOpen: true, collageIds: ids, collageResult: null, collageBusy: false }),
+  closeCollage: () => set({ collageOpen: false, collageResult: null }),
+  runCollage: async (req) => {
+    set({ collageBusy: true, collageResult: null });
+    try {
+      const collageResult = await api.renderCollage(req);
+      set({ collageResult, collageBusy: false });
+    } catch (e) {
+      set({ collageBusy: false, error: String(e) });
+    }
+  },
 
   setAiDownload: (p) => set({ aiDownload: p }),
   setAiProgress: (p) => set({ aiProgress: p }),

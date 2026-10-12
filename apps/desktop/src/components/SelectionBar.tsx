@@ -10,6 +10,7 @@ export function SelectionBar() {
   const addSelectedToAlbum = useApp((s) => s.addSelectedToAlbum);
   const addTagsToSelected = useApp((s) => s.addTagsToSelected);
   const openExport = useApp((s) => s.openExport);
+  const openCollage = useApp((s) => s.openCollage);
   const [tagInput, setTagInput] = useState("");
 
   if (selectedIds.size === 0) return null;
@@ -52,6 +53,11 @@ export function SelectionBar() {
       <button className="btn" onClick={() => openExport([...selectedIds])}>
         {t("select.export")}
       </button>
+      {selectedIds.size >= 2 && (
+        <button className="btn" onClick={() => openCollage([...selectedIds])}>
+          {t("select.collage")}
+        </button>
+      )}
       <button className="btn" onClick={clearSelection}>
         {t("select.cancel")}
       </button>

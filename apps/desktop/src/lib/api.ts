@@ -7,6 +7,8 @@ import type {
   AiStatus,
   AlbumDto,
   CardPhotoDto,
+  CollageRequest,
+  CollageResult,
   DupeGroup,
   ExportProgress,
   ExportRequest,
@@ -87,6 +89,8 @@ export const listFaces = (photoId: number) => invoke<FaceDto[]>("list_faces", { 
 
 export const exportPhotos = (req: ExportRequest) =>
   invoke<ExportResult>("export_photos", { req });
+export const renderCollage = (req: CollageRequest) =>
+  invoke<CollageResult>("render_collage", { req });
 
 export const thumbUrl = (thumbPath: string | null) =>
   thumbPath ? convertFileSrc(thumbPath) : null;

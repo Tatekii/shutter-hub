@@ -12,6 +12,7 @@ import { SelectionBar } from "./components/SelectionBar";
 import { Sidebar } from "./components/Sidebar";
 import { Viewer } from "./components/Viewer";
 import { ExportDialog } from "./components/ExportDialog";
+import { CollageDialog } from "./components/CollageDialog";
 import * as api from "./lib/api";
 import { useT } from "./lib/i18n";
 import { useApp } from "./lib/store";
@@ -41,6 +42,7 @@ function App() {
   const clearAiResults = useApp((s) => s.clearAiResults);
   const aiSearching = useApp((s) => s.aiSearching);
   const exportOpen = useApp((s) => s.exportOpen);
+  const collageOpen = useApp((s) => s.collageOpen);
   const t = useT();
   const [showHelp, setShowHelp] = useState(false);
   const [showVolumePicker, setShowVolumePicker] = useState(false);
@@ -291,6 +293,7 @@ function App() {
       {cardVolume && <CardBrowser />}
       {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
       {exportOpen && <ExportDialog />}
+      {collageOpen && <CollageDialog />}
       <Viewer />
     </div>
   );

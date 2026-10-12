@@ -202,3 +202,22 @@ export interface ExportResult {
   totalBytes: number;
   targetDir: string;
 }
+
+export interface CollageRequest {
+  photoIds: number[];
+  layout: "grid" | "strip" | "featured";
+  cols: number;
+  gap: number;
+  radius: number;
+  background: string;
+  size: number;
+  quality: number;
+  targetDir: string;
+}
+
+export interface CollageResult {
+  path: string;
+  width: number;
+  height: number;
+  failed: string[];
+}

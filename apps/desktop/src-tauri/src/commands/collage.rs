@@ -8,13 +8,16 @@ use tauri::State;
 
 use super::library::to_str;
 
-/// 渲染拼图并保存到目标目录（同步命令，图片量小、渲染快）。
+/// 渲染拼图并保存到目标目录（预览可能是懒生成，走后台线程）。
 #[tauri::command]
-pub fn render_collage(
+pub async fn render_collage(
     state: State<'_, AppState>,
     req: CollageRequest,
 ) -> Result<CollageResult, String> {
-    render_collage_inner(&state, &req)
+    let state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || render_collage_inner(&state, &req))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 pub fn render_collage_inner(

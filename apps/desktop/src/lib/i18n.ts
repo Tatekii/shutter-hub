@@ -82,7 +82,34 @@ const STRINGS: Record<string, { zh: string; en: string }> = {
   "select.addToAlbumTitle": { zh: "加入相册", en: "Add to album" },
   "select.tagPlaceholder": { zh: "添加标签（逗号分隔）", en: "Add tags (comma separated)" },
   "select.export": { zh: "导出", en: "Export" },
+  "select.collage": { zh: "拼图", en: "Collage" },
   "select.cancel": { zh: "取消选择", en: "Clear selection" },
+
+  // collage
+  "collage.title": { zh: "拼图工坊", en: "Collage studio" },
+  "collage.layout": { zh: "版式", en: "Layout" },
+  "collage.layoutGrid": { zh: "网格", en: "Grid" },
+  "collage.layoutStrip": { zh: "胶片条", en: "Film strip" },
+  "collage.layoutFeatured": { zh: "大图模式", en: "Featured" },
+  "collage.columns": { zh: "列数", en: "Columns" },
+  "collage.size": { zh: "输出尺寸", en: "Output size" },
+  "collage.gap": { zh: "间距", en: "Gap" },
+  "collage.radius": { zh: "圆角", en: "Corner radius" },
+  "collage.background": { zh: "背景", en: "Background" },
+  "collage.bgWhite": { zh: "白色", en: "White" },
+  "collage.bgBlack": { zh: "黑色", en: "Black" },
+  "collage.bgPaper": { zh: "纸色", en: "Paper" },
+  "collage.bgAccent": { zh: "主题色", en: "Accent" },
+  "collage.generate": { zh: "生成拼图", en: "Generate collage" },
+  "collage.done": { zh: "拼图已生成", en: "Collage generated" },
+  "collage.failedCells": {
+    zh: "{n} 张无法解码，已用背景色填充",
+    en: "{n} photos could not be decoded and are shown as background",
+  },
+  "collage.featuredHint": {
+    zh: "大图模式使用前 3 张照片",
+    en: "Featured layout uses the first 3 photos",
+  },
 
   // export
   "export.title": { zh: "导出照片", en: "Export photos" },
