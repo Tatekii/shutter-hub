@@ -1,6 +1,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef, useState } from "react";
-import { thumbUrl } from "../lib/api";
+import { thumbUrl, COLOR_HEX } from "../lib/api";
+import { useApp } from "../lib/store";
 import type { PhotoDto } from "../lib/types";
 
 const CELL_WIDTH = 208;
@@ -34,14 +35,16 @@ export function PhotoGrid({ photos }: { photos: PhotoDto[] }) {
   });
 
   const rows = virtualizer.getVirtualItems();
-
   const cellCount = Math.max(1, columns);
 
   return (
     <div ref={containerRef} className="photo-grid">
       <div
         className="photo-grid-inner"
-        style={{ height: virtualizer.getTotalSize(), gridTemplateColumns: `repeat(${cellCount}, minmax(0, 1fr))` }}
+        style={{
+          height: virtualizer.getTotalSize(),
+          gridTemplateColumns: `repeat(${cellCount}, minmax(0, 1fr))`,
+        }}
       >
         {rows.map((row) => {
           const start = row.index * columns;
@@ -67,10 +70,23 @@ export function PhotoGrid({ photos }: { photos: PhotoDto[] }) {
 }
 
 function PhotoCard({ photo }: { photo: PhotoDto }) {
-  const url = thumbUrl(photo);
+  const url = thumbUrl(photo.thumbPath);
+  const selected = useApp((s) => s.selectedIds.has(photo.id));
+  const inspectorId = useApp((s) => s.inspectorId);
+  const select = useApp((s) => s.select);
+
+  const isInspector = inspectorId === photo.id;
 
   return (
-    <div className="photo-card" title={photo.filename}>
+    <div
+      className={`photo-card ${selected ? "selected" : ""} ${isInspector ? "inspector" : ""}`}
+      title={photo.filename}
+      onClick={(e) => select(photo.id, e.metaKey || e.ctrlKey)}
+      onDoubleClick={(e) => {
+        e.preventDefault();
+        select(photo.id, false);
+      }}
+    >
       <div className="photo-card-thumb">
         {url ? (
           <img src={url} alt={photo.filename} loading="lazy" draggable={false} />
@@ -82,6 +98,18 @@ function PhotoCard({ photo }: { photo: PhotoDto }) {
               <path d="m3 17 5-5 4 4 3-3 6 6" />
             </svg>
           </div>
+        )}
+        {photo.flag && (
+          <span className={`flag-badge flag-${photo.flag}`}>
+            {photo.flag === "pick" ? "✓" : "✕"}
+          </span>
+        )}
+        {photo.rating > 0 && <span className="rating-badge">{"★".repeat(photo.rating)}</span>}
+        {photo.colorLabel && (
+          <span
+            className="color-badge"
+            style={{ background: COLOR_HEX[photo.colorLabel] ?? "#888" }}
+          />
         )}
       </div>
       <div className="photo-card-caption">
