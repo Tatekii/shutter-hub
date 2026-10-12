@@ -27,6 +27,14 @@
       }
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUyNDJFM0MzODM2MDE0QkMKUldTOEZHQ0R3K05DNHRxUkRZbnN0TWFjMDBRRTYwalNsNGhqV0JyS0tBaUpJNmtUMWFMa1BHQjgK",
+      "endpoints": [
+        "https://github.com/Tatekii/shutter-hub/releases/latest/download/latest.json"
+      ]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",
