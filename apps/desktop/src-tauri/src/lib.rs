@@ -8,6 +8,8 @@ pub mod indexer;
 pub mod metadata;
 pub mod models;
 pub mod preview;
+pub mod share;
+pub mod text;
 pub mod thumbs;
 pub mod video;
 pub mod volumes;
@@ -97,6 +99,7 @@ pub fn run() {
             commands::render_collage,
             commands::get_edit,
             commands::set_edit,
+            commands::render_share_cards,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

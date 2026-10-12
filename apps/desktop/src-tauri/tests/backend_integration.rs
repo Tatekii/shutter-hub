@@ -306,6 +306,7 @@ fn export_photos_batch_resize_and_naming() {
         quality: 85,
         max_dimension: Some(100),
         filename_suffix: "_edit".into(),
+        watermark: None,
     };
     let mut progress_count = 0;
     let result =
@@ -337,6 +338,7 @@ fn export_photos_batch_resize_and_naming() {
         quality: 90,
         max_dimension: None,
         filename_suffix: "".into(),
+        watermark: None,
     };
     let result3 =
         desktop_lib::commands::export_photos_inner(&state, &req_png, |_| {}).unwrap();
@@ -488,6 +490,7 @@ fn develop_edit_roundtrip_and_export_applies() {
         quality: 90,
         max_dimension: None,
         filename_suffix: "".into(),
+        watermark: None,
     };
     let result =
         desktop_lib::commands::export_photos_inner(&state, &req, |_| {}).unwrap();
@@ -562,6 +565,42 @@ fn live_motion_export_copy_and_errors() {
     )
     .unwrap_err();
     assert!(err.contains("实况"), "clear error: {err}");
+
+    std::fs::remove_dir_all(ctx.dir.parent().unwrap()).ok();
+}
+
+#[test]
+fn share_card_renders_expected_size() {
+    let _guard = LOCK.lock().unwrap();
+    let ctx = setup("sharecard");
+    let out_dir = ctx.dir.parent().unwrap().join("cards");
+
+    make_jpeg(&ctx.dir.join("IMG_0400.jpg"), 480, 360, 61);
+    scan(&ctx);
+    let conn = db::open_db(&ctx.db).unwrap();
+    let id: i64 = conn
+        .query_row("SELECT id FROM photos", [], |r| r.get(0))
+        .unwrap();
+
+    let state = setup_state(&ctx);
+    let req = desktop_lib::models::ShareCardRequest {
+        photo_ids: vec![id],
+        aspect: "4:5".into(),
+        background: "#ffffff".into(),
+        text_color: "#1e1e1e".into(),
+        show_info: true,
+        watermark: "Shutter Hub".into(),
+        target_dir: out_dir.to_string_lossy().into_owned(),
+    };
+    let result = desktop_lib::commands::render_share_cards_inner(&state, &req).unwrap();
+    assert_eq!(result.paths.len(), 1);
+    assert!(result.failed.is_empty());
+
+    let img = image::open(&result.paths[0]).unwrap();
+    assert_eq!((img.width(), img.height()), (1440, 1800));
+    // 左上角为背景
+    let corner = img.to_rgb8().get_pixel(0, 0).0;
+    assert_eq!(corner, [255, 255, 255]);
 
     std::fs::remove_dir_all(ctx.dir.parent().unwrap()).ok();
 }

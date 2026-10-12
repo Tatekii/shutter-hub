@@ -76,6 +76,7 @@ pub fn export_photos_inner(
                     req.max_dimension,
                     suffix,
                     adj.as_ref(),
+                    req.watermark.as_deref(),
                 ) {
                     Ok(out) => {
                         result.exported += 1;
@@ -168,6 +169,7 @@ fn export_one(
     max_dimension: Option<u32>,
     suffix: &str,
     adj: Option<&crate::develop::Adjustments>,
+    watermark: Option<&str>,
 ) -> anyhow::Result<PathBuf> {
     let stem = format!("{}{}", export::file_stem(src), suffix);
 
@@ -190,5 +192,24 @@ fn export_one(
         None => img,
     };
     let img = export::fit_long_edge(img, max_dimension);
+    // 水印（右下角，带阴影）
+    let img = match watermark {
+        Some(text) if !text.trim().is_empty() => {
+            let mut rgb = crate::preview::flatten_to_rgb(img).to_rgb8();
+            let margin = (rgb.width() / 40).max(8);
+            let scale = (rgb.width() as f32 / 42.0).max(12.0);
+            crate::text::draw_text_bottom_right(
+                &mut rgb,
+                text,
+                margin,
+                margin,
+                scale,
+                [255, 255, 255],
+                0.85,
+            );
+            image::DynamicImage::ImageRgb8(rgb)
+        }
+        _ => img,
+    };
     export::write_image(img, target, &stem, format, quality)
 }

@@ -263,6 +263,9 @@ pub struct ExportRequest {
     pub max_dimension: Option<u32>,
     /// 文件名后缀，如 "_edit"
     pub filename_suffix: String,
+    /// 可选水印文字（右下角）
+    #[serde(default)]
+    pub watermark: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -308,5 +311,27 @@ pub struct CollageResult {
     pub path: String,
     pub width: u32,
     pub height: u32,
+    pub failed: Vec<String>,
+}
+
+// ---------- 分享卡 ----------
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShareCardRequest {
+    pub photo_ids: Vec<i64>,
+    /// "1:1" | "4:5" | "3:4"
+    pub aspect: String,
+    pub background: String,
+    pub text_color: String,
+    pub show_info: bool,
+    pub watermark: String,
+    pub target_dir: String,
+}
+
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShareCardResult {
+    pub paths: Vec<String>,
     pub failed: Vec<String>,
 }

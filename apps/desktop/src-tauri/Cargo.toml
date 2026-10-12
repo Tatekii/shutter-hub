@@ -38,6 +38,8 @@ tauri-plugin-updater = "2.13.3"
 ort = { version = "2.0.0-rc.13", features = ["download-binaries"] }
 ureq = "2.12"
 tokenizers = { version = "0.21", default-features = false, features = ["onig"] }
+fontdb = "0.24.0"
+ab_glyph = "0.2.32"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
