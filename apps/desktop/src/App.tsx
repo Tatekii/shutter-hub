@@ -201,7 +201,11 @@ function App() {
       );
     }
     if (aiSearching && !aiResults) {
-      return <div className="ai-searching">{t("ai.busy")}</div>;
+      return (
+        <div className="ai-searching" aria-live="polite">
+          {t("ai.busy")}
+        </div>
+      );
     }
     if (photos.length === 0) {
       return <EmptyState onAdd={() => void addFolder()} />;
@@ -222,7 +226,7 @@ function App() {
             </div>
           )}
           {error && (
-            <div className="error-banner">
+            <div className="error-banner" role="alert">
               <span>{error}</span>
               <button className="chip-action" onClick={() => setError(null)}>
                 ×
@@ -273,7 +277,13 @@ function App() {
       {hashing && (
         <footer className="app-footer">
           <div className="scan-bar">
-            <div className="scan-bar-track">
+            <div
+                className="scan-bar-track"
+                role="progressbar"
+                aria-valuenow={hashing.processed}
+                aria-valuemin={0}
+                aria-valuemax={hashing.total}
+              >
               <div
                 className="scan-bar-fill"
                 style={{

@@ -23,7 +23,13 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="help-overlay" onClick={onClose}>
-      <div className="help-dialog" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="help-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("help.title")}
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2>{t("help.title")}</h2>
         <table className="help-table">
           <tbody>

@@ -54,7 +54,12 @@ export function Inspector() {
     <aside className="inspector">
       <div className="inspector-header">
         <span>{t("inspector.title")}</span>
-        <button className="icon-btn" title={t("inspector.close")} onClick={() => setInspector(null)}>
+        <button
+          className="icon-btn"
+          title={t("inspector.close")}
+          aria-label={t("inspector.close")}
+          onClick={() => setInspector(null)}
+        >
           ×
         </button>
       </div>
@@ -87,6 +92,7 @@ export function Inspector() {
               className={`color-pick ${photo.colorLabel === name ? "on" : ""}`}
               style={{ background: hex }}
               title={t("inspector.colorToggle", { name: t(`color.${name}`) })}
+              aria-label={t("inspector.colorToggle", { name: t(`color.${name}`) })}
               onClick={() => void colorSelected(photo.colorLabel === name ? "" : name)}
             />
           ))}
@@ -121,6 +127,7 @@ export function Inspector() {
       >
         <input
           value={tagInput}
+          aria-label={t("inspector.tagPlaceholder")}
           onChange={(e) => setTagInput(e.target.value)}
           placeholder={t("inspector.tagPlaceholder")}
         />

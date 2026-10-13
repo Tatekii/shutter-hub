@@ -24,7 +24,13 @@ export function AiPanel({ onClose }: { onClose: () => void }) {
   };
 
   const progressBar = (done: number, total: number) => (
-    <div className="ai-progress-track">
+    <div
+      className="ai-progress-track"
+      role="progressbar"
+      aria-valuenow={done}
+      aria-valuemin={0}
+      aria-valuemax={total}
+    >
       <div
         className="ai-progress-fill"
         style={{ width: `${total > 0 ? Math.round((done / total) * 100) : 0}%` }}
@@ -36,7 +42,7 @@ export function AiPanel({ onClose }: { onClose: () => void }) {
     <div className="ai-panel">
       <div className="ai-panel-header">
         <span>{t("ai.title")}</span>
-        <button className="icon-btn" title={t("filter.collapse")} onClick={onClose}>
+        <button className="icon-btn" title={t("filter.collapse")} aria-label={t("filter.collapse")} onClick={onClose}>
           ×
         </button>
       </div>
@@ -52,13 +58,13 @@ export function AiPanel({ onClose }: { onClose: () => void }) {
             {t("ai.download")}
           </button>
           {aiDownload && !aiDownload.done && (
-            <div className="ai-downloading">
+            <div className="ai-downloading" aria-live="polite">
               {downloadLabel()}
               {progressBar(aiDownload.received, aiDownload.total ?? aiDownload.received + 1)}
             </div>
           )}
           {aiDownload?.done && aiDownload.error && (
-            <div className="ai-error">{aiDownload.error}</div>
+            <div className="ai-error" role="alert">{aiDownload.error}</div>
           )}
         </div>
       ) : (
@@ -96,7 +102,7 @@ export function AiPanel({ onClose }: { onClose: () => void }) {
           </div>
 
           {aiProgress && (
-            <div className="ai-progress-text">
+            <div className="ai-progress-text" aria-live="polite">
               {t("ai.progress", {
                 label:
                   aiProgress.kind === "embeddings"

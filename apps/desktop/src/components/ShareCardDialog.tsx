@@ -118,7 +118,13 @@ export function ShareCardDialog() {
 
   return (
     <div className="export-overlay" onClick={shareBusy ? undefined : closeShare}>
-      <div className="export-dialog collage-dialog" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="export-dialog collage-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("share.title")}
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2>
           {t("share.title")} · {shareIds.length}
         </h2>
@@ -285,6 +291,7 @@ export function ShareCardDialog() {
                   <input
                     type="text"
                     className="share-watermark-input"
+                    aria-label={t("share.titleLabel")}
                     value={title}
                     disabled={shareBusy}
                     placeholder={t("share.titlePlaceholder")}
@@ -297,6 +304,7 @@ export function ShareCardDialog() {
                   <input
                     type="text"
                     className="share-watermark-input"
+                    aria-label={t("share.captionLabel")}
                     value={caption}
                     disabled={shareBusy}
                     placeholder={t("share.captionPlaceholder")}
@@ -309,6 +317,7 @@ export function ShareCardDialog() {
                   <input
                     type="text"
                     className="share-watermark-input"
+                    aria-label={t("share.watermark")}
                     value={watermark}
                     disabled={shareBusy}
                     placeholder={t("share.watermarkPlaceholder")}

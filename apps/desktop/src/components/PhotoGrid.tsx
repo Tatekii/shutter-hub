@@ -86,6 +86,18 @@ function PhotoCard({ photo }: { photo: PhotoDto }) {
       title={photo.filename}
       onClick={(e) => select(photo.id, e.metaKey || e.ctrlKey)}
       onDoubleClick={() => openViewer(photo.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          openViewer(photo.id);
+        } else if (e.key === " ") {
+          e.preventDefault();
+          select(photo.id, false);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
     >
       <div className="photo-card-thumb">
         {url ? (

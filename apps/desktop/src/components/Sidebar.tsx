@@ -48,7 +48,7 @@ export function Sidebar() {
       <section className="sidebar-section">
         <div className="sidebar-title">
           <span>{t("sidebar.folders")}</span>
-          <button className="icon-btn" title={t("sidebar.addFolder")} onClick={() => void addFolder()}>
+          <button className="icon-btn" title={t("sidebar.addFolder")} aria-label={t("sidebar.addFolder")} onClick={() => void addFolder()}>
             +
           </button>
         </div>
@@ -60,6 +60,9 @@ export function Sidebar() {
             key={f.id}
             className={`sidebar-item ${view.kind === "library" ? "active" : ""}`}
             onClick={() => setView({ kind: "library" })}
+            onKeyDown={itemKey(() => setView({ kind: "library" }))}
+            role="button"
+            tabIndex={0}
             title={f.path}
           >
             <span className="sidebar-item-name">{folderName(f.path)}</span>
@@ -68,6 +71,7 @@ export function Sidebar() {
               <button
                 className="icon-btn tiny"
                 title={t("sidebar.rescan")}
+                aria-label={t("sidebar.rescan")}
                 onClick={(e) => {
                   e.stopPropagation();
                   void rescanFolder(f.id);
@@ -78,6 +82,7 @@ export function Sidebar() {
               <button
                 className="icon-btn tiny danger"
                 title={t("sidebar.removeFolder")}
+                aria-label={t("sidebar.removeFolder")}
                 onClick={(e) => {
                   e.stopPropagation();
                   void removeFolder(f.id);
@@ -96,6 +101,7 @@ export function Sidebar() {
           <button
             className="icon-btn"
             title={t("sidebar.newAlbum")}
+            aria-label={t("sidebar.newAlbum")}
             onClick={() => setAlbumInput(true)}
           >
             +
@@ -114,6 +120,7 @@ export function Sidebar() {
             <input
               autoFocus
               value={albumName}
+              aria-label={t("sidebar.albumName")}
               onChange={(e) => setAlbumName(e.target.value)}
               placeholder={t("sidebar.albumName")}
             />
@@ -126,6 +133,9 @@ export function Sidebar() {
               view.kind === "album" && view.id === a.id ? "active" : ""
             }`}
             onClick={() => setView({ kind: "album", id: a.id, name: a.name })}
+            onKeyDown={itemKey(() => setView({ kind: "album", id: a.id, name: a.name }))}
+            role="button"
+            tabIndex={0}
             title={a.name}
           >
             <span className="sidebar-item-name">▣ {a.name}</span>
@@ -134,6 +144,7 @@ export function Sidebar() {
               <button
                 className="icon-btn tiny danger"
                 title={t("sidebar.deleteAlbum")}
+                aria-label={t("sidebar.deleteAlbum")}
                 onClick={(e) => {
                   e.stopPropagation();
                   void deleteAlbum(a.id);
@@ -157,6 +168,9 @@ export function Sidebar() {
               view.kind === "tag" && view.id === tag.id ? "active" : ""
             }`}
             onClick={() => setView({ kind: "tag", id: tag.id, name: tag.name })}
+            onKeyDown={itemKey(() => setView({ kind: "tag", id: tag.id, name: tag.name }))}
+            role="button"
+            tabIndex={0}
             title={tag.name}
           >
             <span className="sidebar-item-name"># {tag.name}</span>
@@ -165,6 +179,7 @@ export function Sidebar() {
               <button
                 className="icon-btn tiny danger"
                 title={t("sidebar.deleteTag")}
+                aria-label={t("sidebar.deleteTag")}
                 onClick={(e) => {
                   e.stopPropagation();
                   void deleteTag(tag.id);
@@ -200,6 +215,16 @@ export function Sidebar() {
       </div>
     </aside>
   );
+}
+
+/// 列表项的键盘可达性（Enter / Space 触发同点击）。
+function itemKey(action: () => void) {
+  return (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      action();
+    }
+  };
 }
 
 function folderName(path: string): string {

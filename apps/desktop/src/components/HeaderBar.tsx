@@ -54,6 +54,8 @@ export function HeaderBar({ onShowHelp }: { onShowHelp: () => void }) {
           <button
             className={`search-mode ${searchMode === "ai" ? "on" : ""}`}
             title={searchMode === "ai" ? t("ai.semanticSearch") : t("ai.keywordSearch")}
+            aria-label={searchMode === "ai" ? t("ai.semanticSearch") : t("ai.keywordSearch")}
+            aria-pressed={searchMode === "ai"}
             onClick={() => {
               setSearchMode(searchMode === "ai" ? "keyword" : "ai");
               setDirty(true);
@@ -83,6 +85,7 @@ export function HeaderBar({ onShowHelp }: { onShowHelp: () => void }) {
             <button
               className="icon-btn"
               title={t("header.clearSearch")}
+              aria-label={t("header.clearSearch")}
               onClick={() => {
                 setSearch("");
                 setDirty(false);
@@ -128,7 +131,7 @@ export function HeaderBar({ onShowHelp }: { onShowHelp: () => void }) {
           {lang === "zh" ? "EN" : "中"}
         </button>
 
-        <button className="icon-btn" title={t("header.helpTitle")} onClick={onShowHelp}>
+        <button className="icon-btn" title={t("header.helpTitle")} aria-label={t("header.helpTitle")} onClick={onShowHelp}>
           ?
         </button>
 

@@ -75,7 +75,13 @@ export function ExportDialog() {
 
   return (
     <div className="export-overlay" onClick={running ? undefined : closeExport}>
-      <div className="export-dialog" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="export-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("export.title")}
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2>
           {t("export.title")} · {exportIds.length}
         </h2>

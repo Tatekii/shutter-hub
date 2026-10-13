@@ -64,7 +64,7 @@ export function DevelopPanel({
         <span className={`develop-saved ${savedTick ? "on" : ""}`}>
           {savedTick ? t("develop.saved") : ""}
         </span>
-        <button className="icon-btn" onClick={onClose}>
+        <button className="icon-btn" aria-label={t("develop.title")} onClick={onClose}>
           ×
         </button>
       </div>

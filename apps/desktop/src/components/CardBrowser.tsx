@@ -54,7 +54,7 @@ export function CardBrowser() {
               })}
             </div>
           </div>
-          <button className="icon-btn" title={t("card.close")} onClick={closeVolume}>
+          <button className="icon-btn" title={t("card.close")} aria-label={t("card.close")} onClick={closeVolume}>
             ×
           </button>
         </header>
@@ -155,6 +155,15 @@ export function CardBrowser() {
                     key={p.path}
                     className={`card-cell ${marked ? "marked" : ""}`}
                     onClick={() => toggleCardMark(p.path)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleCardMark(p.path);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={marked}
                     title={p.filename}
                   >
                     <div className="card-cell-thumb">

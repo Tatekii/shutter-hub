@@ -26,6 +26,7 @@ export function SelectionBar() {
           if (id) void addSelectedToAlbum(id);
         }}
         title={t("select.addToAlbumTitle")}
+        aria-label={t("select.addToAlbumTitle")}
       >
         <option value="">{t("select.addToAlbum")}</option>
         {albums.map((a) => (
@@ -47,6 +48,7 @@ export function SelectionBar() {
       >
         <input
           value={tagInput}
+          aria-label={t("select.tagPlaceholder")}
           onChange={(e) => setTagInput(e.target.value)}
           placeholder={t("select.tagPlaceholder")}
         />

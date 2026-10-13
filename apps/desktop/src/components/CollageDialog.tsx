@@ -97,7 +97,13 @@ export function CollageDialog() {
 
   return (
     <div className="export-overlay" onClick={collageBusy ? undefined : closeCollage}>
-      <div className="export-dialog collage-dialog" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="export-dialog collage-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("collage.title")}
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2>
           {t("collage.title")} · {collageIds.length}
         </h2>

@@ -92,7 +92,6 @@ body {
   flex: 1;
   background: none;
   border: none;
-  outline: none;
   color: var(--text);
   padding: 6px 0;
   font-size: 13px;
@@ -269,7 +268,6 @@ body {
   padding: 5px 8px;
   font-size: 13px;
   margin: 4px 0;
-  outline: none;
 }
 
 .sidebar-footer {
@@ -382,7 +380,6 @@ body {
   color: var(--text);
   padding: 5px 8px;
   font-size: 13px;
-  outline: none;
   min-width: 140px;
 }
 
@@ -687,7 +684,6 @@ body {
   color: var(--text);
   padding: 5px 8px;
   font-size: 12px;
-  outline: none;
 }
 
 .exif-table {
@@ -743,7 +739,6 @@ body {
   color: var(--text);
   padding: 5px 8px;
   font-size: 13px;
-  outline: none;
 }
 
 .selection-bar form {
@@ -802,6 +797,7 @@ body {
 
 .card-overlay {
   position: fixed;
+  overscroll-behavior: contain;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
   display: flex;
@@ -1129,6 +1125,7 @@ body {
 
 .help-overlay {
   position: fixed;
+  overscroll-behavior: contain;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
   display: flex;
@@ -1186,6 +1183,7 @@ kbd {
   position: fixed;
   inset: 0;
   background: rgba(8, 8, 10, 0.96);
+  overscroll-behavior: contain;
   z-index: 300;
   display: flex;
   flex-direction: column;
@@ -1299,6 +1297,7 @@ kbd {
 
 .export-overlay {
   position: fixed;
+  overscroll-behavior: contain;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
   display: flex;
@@ -1366,7 +1365,6 @@ kbd {
   color: var(--text);
   padding: 5px 8px;
   font-size: 13px;
-  outline: none;
 }
 
 .export-row input[type="range"] {
@@ -1551,7 +1549,6 @@ kbd {
   color: var(--text);
   padding: 5px 8px;
   font-size: 13px;
-  outline: none;
   width: 100%;
 }
 
@@ -1912,6 +1909,29 @@ kbd {
   padding: 40px;
   text-align: center;
   color: var(--text-dim);
+}
+
+/* ---------- focus & a11y ---------- */
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-bar-fill,
+  .ai-progress-fill,
+  .develop-saved {
+    transition: none;
+  }
 }
 
 /* ---------- scrollbars ---------- */
