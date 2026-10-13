@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { COLOR_HEX, formatBytes, formatDuration, thumbUrl } from "../lib/api";
+import { COLOR_HEX, formatBytes, formatDuration, isRawName, thumbUrl } from "../lib/api";
 import { useT } from "../lib/i18n";
 import { useApp } from "../lib/store";
 
@@ -21,8 +21,9 @@ export function Inspector() {
   const unknown = t("inspector.unknown");
 
   const rows: Array<[string, string]> = [];
-  if (photo.mediaType === "video") {
-    rows.push([t("inspector.rowType"), t("filter.video")]);
+  const isRaw = isRawName(photo.filename);
+  if (photo.mediaType === "video" || isRaw) {
+    rows.push([t("inspector.rowType"), isRaw ? "RAW" : t("filter.video")]);
   }
   rows.push(
     [t("inspector.rowFilename"), photo.filename],

@@ -151,6 +151,13 @@ export function formatDuration(ms: number): string {
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 }
 
+const RAW_EXTENSIONS = ["nef", "cr2", "cr3", "arw", "raf", "dng", "orf", "rw2", "pef", "srw", "x3f"];
+
+export function isRawName(filename: string): boolean {
+  const ext = filename.toLowerCase().split(".").pop() ?? "";
+  return RAW_EXTENSIONS.includes(ext);
+}
+
 export const COLOR_LABELS: Record<string, string> = {
   red: "红",
   yellow: "黄",

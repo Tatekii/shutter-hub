@@ -182,10 +182,15 @@ fn export_one(
         return export::copy_file(src, target, &stem, &ext);
     }
 
-    let preview = crate::preview::ensure(&state.preview_dir, id, src)
-        .map_err(|e| anyhow::anyhow!("{e:#}"))?
-        .ok_or_else(|| anyhow::anyhow!("无法解码（该格式暂不支持导出）"))?;
-    let img = image::open(&preview)?;
+    // RAW：始终走真实显影（全分辨率传感器数据），而非内嵌预览
+    let img = if crate::raw::is_raw(src) {
+        crate::raw::develop(src)?
+    } else {
+        let preview = crate::preview::ensure(&state.preview_dir, id, src)
+            .map_err(|e| anyhow::anyhow!("{e:#}"))?
+            .ok_or_else(|| anyhow::anyhow!("无法解码（该格式暂不支持导出）"))?;
+        image::open(&preview)?
+    };
     // 非破坏性调色：导出时按全分辨率应用
     let img = match adj {
         Some(adj) => image::DynamicImage::ImageRgb8(crate::develop::render(img, adj, None)),

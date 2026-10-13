@@ -385,6 +385,10 @@ const STRINGS: Record<string, { zh: string; en: string }> = {
   "ai.keywordSearch": { zh: "关键词", en: "Keyword" },
 
   // colors
+  "grid.rawTitle": {
+    zh: "RAW 传感器数据：导出/调色走真实显影",
+    en: "RAW sensor data: editing and export use real development",
+  },
   "color.red": { zh: "红", en: "red" },
   "color.yellow": { zh: "黄", en: "yellow" },
   "color.green": { zh: "绿", en: "green" },

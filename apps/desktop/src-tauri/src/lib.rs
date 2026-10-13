@@ -8,6 +8,7 @@ pub mod indexer;
 pub mod metadata;
 pub mod models;
 pub mod preview;
+pub mod raw;
 pub mod share;
 pub mod text;
 pub mod thumbs;

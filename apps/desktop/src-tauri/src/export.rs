@@ -13,6 +13,7 @@ pub enum ExportFormat {
     Jpeg,
     Png,
     Webp,
+    Tiff,
 }
 
 impl ExportFormat {
@@ -20,6 +21,7 @@ impl ExportFormat {
         match s.to_ascii_lowercase().as_str() {
             "png" => Self::Png,
             "webp" => Self::Webp,
+            "tiff" | "tif" => Self::Tiff,
             _ => Self::Jpeg,
         }
     }
@@ -29,6 +31,7 @@ impl ExportFormat {
             Self::Jpeg => "jpg",
             Self::Png => "png",
             Self::Webp => "webp",
+            Self::Tiff => "tif",
         }
     }
 }
@@ -96,6 +99,15 @@ pub fn write_image(
                 .with_context(|| format!("create {}", out.display()))?;
             let mut writer = BufWriter::new(file);
             let encoder = image::codecs::webp::WebPEncoder::new_lossless(&mut writer);
+            img.write_with_encoder(encoder)?;
+        }
+        ExportFormat::Tiff => {
+            // RAW 后期工作流：无损 TIFF 交付
+            let img = crate::preview::flatten_to_rgb(img);
+            let file = std::fs::File::create(&out)
+                .with_context(|| format!("create {}", out.display()))?;
+            let mut writer = BufWriter::new(file);
+            let encoder = image::codecs::tiff::TiffEncoder::new(&mut writer);
             img.write_with_encoder(encoder)?;
         }
     }
@@ -176,9 +188,13 @@ mod tests {
         assert_eq!(png.extension().unwrap(), "png");
         assert_eq!(image::open(&png).unwrap().width(), 120);
 
-        let webp = write_image(img, &dir, "c", ExportFormat::Webp, 90).unwrap();
+        let webp = write_image(img.clone(), &dir, "c", ExportFormat::Webp, 90).unwrap();
         assert_eq!(webp.extension().unwrap(), "webp");
         assert_eq!(image::open(&webp).unwrap().width(), 120);
+
+        let tif = write_image(img, &dir, "d", ExportFormat::Tiff, 90).unwrap();
+        assert_eq!(tif.extension().unwrap(), "tif");
+        assert_eq!(image::open(&tif).unwrap().width(), 120);
 
         std::fs::remove_dir_all(&dir).ok();
     }

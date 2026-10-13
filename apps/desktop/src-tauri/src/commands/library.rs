@@ -144,7 +144,7 @@ pub fn get_viewer_preview_inner(state: &AppState, id: i64) -> Result<Option<Stri
 }
 
 /// 调色预览缓存：`<id>_edit_<hash8>.jpg`。参数变化 → 新哈希文件；
-/// 源预览更新（照片被替换）→ 重渲染。
+/// 源预览更新（照片被替换）→ 重渲染。RAW 照片的编辑基底走真实显影。
 fn render_edit_preview(
     state: &AppState,
     id: i64,
@@ -155,8 +155,14 @@ fn render_edit_preview(
     let hash = &blake3::hash(edit_json.as_bytes()).to_hex().to_string()[..8];
     let out = state.preview_dir.join(format!("{id}_edit_{hash}.jpg"));
 
-    let Some(base) = crate::preview::ensure(&state.preview_dir, id, src)? else {
-        return Ok(None);
+    // RAW：真实显影基底（长边 4096 缓存）；其余格式走内嵌预览
+    let base = if crate::raw::is_raw(src) {
+        crate::raw::ensure_base(&state.preview_dir, id, src, 4096)?
+    } else {
+        match crate::preview::ensure(&state.preview_dir, id, src)? {
+            Some(p) => p,
+            None => return Ok(None),
+        }
     };
 
     let fresh = match (
@@ -225,12 +231,13 @@ pub fn remove_folder(state: State<'_, AppState>, folder_id: i64) -> Result<(), S
     for id in &photo_ids {
         let _ = std::fs::remove_file(crate::thumbs::thumb_path_for(&state.cache_dir, *id));
         let _ = std::fs::remove_file(crate::preview::path_for(&state.preview_dir, *id));
-        // 调色预览缓存（<id>_edit_*.jpg）
-        let prefix = format!("{id}_edit_");
-        if let Ok(entries) = std::fs::read_dir(&state.preview_dir) {
-            for entry in entries.flatten() {
-                if entry.file_name().to_string_lossy().starts_with(&prefix) {
-                    let _ = std::fs::remove_file(entry.path());
+        // 调色预览（<id>_edit_*.jpg）与 RAW 显影基底（<id>_raw_*.jpg）缓存
+        for prefix in [format!("{id}_edit_"), format!("{id}_raw_")] {
+            if let Ok(entries) = std::fs::read_dir(&state.preview_dir) {
+                for entry in entries.flatten() {
+                    if entry.file_name().to_string_lossy().starts_with(&prefix) {
+                        let _ = std::fs::remove_file(entry.path());
+                    }
                 }
             }
         }

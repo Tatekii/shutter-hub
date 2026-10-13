@@ -515,6 +515,16 @@ body {
   padding: 1px 4px;
 }
 
+.raw-badge-inline {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: #cfe6ff;
+  background: rgba(40, 80, 140, 0.75);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
 .flag-badge {
   position: absolute;
   top: 4px;

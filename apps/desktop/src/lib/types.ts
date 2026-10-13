@@ -196,7 +196,7 @@ export interface Adjustments {
 export interface ExportRequest {
   photoIds: number[];
   targetDir: string;
-  format: "jpeg" | "png" | "webp";
+  format: "jpeg" | "png" | "webp" | "tiff";
   quality: number;
   maxDimension: number | null;
   filenameSuffix: string;

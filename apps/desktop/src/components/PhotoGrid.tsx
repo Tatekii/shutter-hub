@@ -1,6 +1,6 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef, useState } from "react";
-import { formatDuration, thumbUrl, COLOR_HEX } from "../lib/api";
+import { formatDuration, isRawName, thumbUrl, COLOR_HEX } from "../lib/api";
 import { useT } from "../lib/i18n";
 import { useApp } from "../lib/store";
 import type { PhotoDto } from "../lib/types";
@@ -110,12 +110,17 @@ function PhotoCard({ photo }: { photo: PhotoDto }) {
             {photo.flag === "pick" ? "✓" : "✕"}
           </span>
         )}
-        {(photo.rating > 0 || photo.hasEdit) && (
+        {(photo.rating > 0 || photo.hasEdit || isRawName(photo.filename)) && (
           <span className="card-badge-left">
             {photo.rating > 0 && (
               <span className="rating-badge-inline">{"★".repeat(photo.rating)}</span>
             )}
             {photo.hasEdit && <span className="edit-badge-inline">✎</span>}
+            {isRawName(photo.filename) && (
+              <span className="raw-badge-inline" title={t("grid.rawTitle")}>
+                RAW
+              </span>
+            )}
           </span>
         )}
         {photo.colorLabel && (

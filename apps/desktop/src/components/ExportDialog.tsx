@@ -6,7 +6,7 @@ import { useApp } from "../lib/store";
 
 type Preset = {
   key: string;
-  format: "jpeg" | "png" | "webp";
+  format: "jpeg" | "png" | "webp" | "tiff";
   quality: number;
   maxDimension: number | null;
 };
@@ -37,7 +37,7 @@ export function ExportDialog() {
   const exportProgress = useApp((s) => s.exportProgress);
   const exportResult = useApp((s) => s.exportResult);
 
-  const [format, setFormat] = useState<"jpeg" | "png" | "webp">("jpeg");
+  const [format, setFormat] = useState<"jpeg" | "png" | "webp" | "tiff">("jpeg");
   const [quality, setQuality] = useState(88);
   const [maxDimension, setMaxDimension] = useState<number | null>(2048);
   const [suffix, setSuffix] = useState("");
@@ -139,6 +139,7 @@ export function ExportDialog() {
                   <option value="jpeg">JPEG</option>
                   <option value="png">PNG</option>
                   <option value="webp">WebP（无损）</option>
+                  <option value="tiff">TIFF（RAW 后期）</option>
                 </select>
               </label>
 
