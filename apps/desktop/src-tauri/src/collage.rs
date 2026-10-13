@@ -29,6 +29,19 @@ pub fn layout(kind: &str, cols: u32, count: usize) -> (Vec<Cell>, u32, u32) {
                 .collect();
             (cells, cols, 1)
         }
+        // 瀑布长图：单列纵向堆叠（朋友圈长图 / Plog 正文）
+        "vertical" => {
+            let rows = n.clamp(2, 8);
+            let cells = (0..rows)
+                .map(|i| Cell {
+                    col: 0,
+                    row: i,
+                    col_span: 1,
+                    row_span: 1,
+                })
+                .collect();
+            (cells, 1, rows)
+        }
         "featured" => {
             let n = n.clamp(2, 3);
             let mut cells = vec![Cell {
@@ -140,6 +153,7 @@ fn paste_rounded(canvas: &mut RgbImage, tile: &RgbImage, x: u32, y: u32, radius:
 }
 
 /// 渲染拼图画布。images 与 layout 单元一一对应，None 表示该格留背景色。
+/// title 非空时在顶部居中绘制标题（字体缺失时静默跳过，但保留排版空间）。
 pub fn render(
     images: &[Option<image::DynamicImage>],
     kind: &str,
@@ -148,6 +162,7 @@ pub fn render(
     radius: u32,
     bg: [u8; 3],
     size: u32,
+    title: &str,
 ) -> RgbImage {
     let (cells, grid_cols, grid_rows) = layout(kind, cols, images.len());
     let size = size.clamp(64, 8192);
@@ -155,16 +170,36 @@ pub fn render(
     let raw_cell = (size as i64 - gap as i64 * (grid_cols as i64 + 1)) / grid_cols as i64;
     let cell = raw_cell.max(16) as u32;
 
+    let title = title.trim();
+    let title_h = if title.is_empty() { 0 } else { size / 12 };
+
     let out_w = grid_cols * cell + gap * (grid_cols + 1);
-    let out_h = grid_rows * cell + gap * (grid_rows + 1);
+    let out_h = grid_rows * cell + gap * (grid_rows + 1) + title_h;
     let mut canvas = RgbImage::from_pixel(out_w, out_h, Rgb(bg));
+
+    if !title.is_empty() {
+        let scale = size as f32 / 24.0;
+        if let Some((text_w, _)) = crate::text::measure(title, scale) {
+            let x = ((out_w as f32 - text_w) / 2.0).max(gap as f32) as i32;
+            let baseline = (title_h as f32 * 0.72).max(scale) as i32;
+            crate::text::draw_text(
+                &mut canvas,
+                title,
+                x,
+                baseline,
+                scale,
+                crate::text::contrast_color(bg),
+                1.0,
+            );
+        }
+    }
 
     for (img, cell_def) in images.iter().zip(cells.iter()) {
         let Some(img) = img else { continue };
         let w = cell * cell_def.col_span + gap * (cell_def.col_span - 1);
         let h = cell * cell_def.row_span + gap * (cell_def.row_span - 1);
         let x = gap + cell_def.col * (cell + gap);
-        let y = gap + cell_def.row * (cell + gap);
+        let y = title_h + gap + cell_def.row * (cell + gap);
         let tile = cover_square(img, w.min(h));
         paste_rounded(&mut canvas, &tile, x, y, radius, bg);
     }
@@ -210,6 +245,32 @@ mod tests {
     }
 
     #[test]
+    fn vertical_layout_is_single_column() {
+        let (cells, cols, rows) = layout("vertical", 2, 4);
+        assert_eq!((cols, rows), (1, 4));
+        assert!(cells.iter().all(|c| c.col == 0));
+        assert_eq!(cells[3].row, 3);
+    }
+
+    #[test]
+    fn title_reserves_and_uses_space() {
+        let img = image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+            60,
+            60,
+            Rgb([100, 140, 180]),
+        ));
+        let images: Vec<Option<image::DynamicImage>> = (0..2).map(|_| Some(img.clone())).collect();
+        let plain = render(&images, "grid", 2, 8, 0, [255, 255, 255], 256, "");
+        let titled = render(&images, "grid", 2, 8, 0, [255, 255, 255], 256, "海边");
+        assert_eq!(plain.width(), titled.width());
+        assert_eq!(
+            titled.height() - plain.height(),
+            256 / 12,
+            "title reserves top space"
+        );
+    }
+
+    #[test]
     fn parse_colors() {
         assert_eq!(parse_hex_color("#ffffff"), Some([255, 255, 255]));
         assert_eq!(parse_hex_color("1a1a1e"), Some([26, 26, 30]));
@@ -226,7 +287,7 @@ mod tests {
         ));
         let images: Vec<Option<image::DynamicImage>> =
             (0..4).map(|_| Some(img.clone())).collect();
-        let canvas = render(&images, "grid", 2, 4, 8, [255, 255, 255], 200);
+        let canvas = render(&images, "grid", 2, 4, 8, [255, 255, 255], 200, "");
 
         // cell = (200 - 4*3) / 2 = 94 → 2*94 + 3*4 = 200
         assert_eq!(canvas.dimensions(), (200, 200));
@@ -248,7 +309,7 @@ mod tests {
             Rgb([10, 120, 200]),
         ));
         let images = vec![Some(img), None, None];
-        let canvas = render(&images, "grid", 2, 8, 0, [0, 0, 0], 256);
+        let canvas = render(&images, "grid", 2, 8, 0, [0, 0, 0], 256, "");
         // 第二格为背景黑
         let cell = ((256 - 8 * 3) / 2) as u32;
         let px = canvas.get_pixel(8 + cell + 8 + cell / 2, 8 + cell / 2);

@@ -112,20 +112,25 @@ pub fn render_share_cards_inner(
         let mut style = ShareStyle::preset(&req.aspect, background, text_color);
         style.show_info = req.show_info;
         style.watermark = req.watermark.clone();
+        style.polaroid = req.polaroid;
 
-        // 信息条文本
+        // 信息条文本：标题 / 文案 / 相机 / 参数 / 日期
         let mut lines: Vec<String> = Vec::new();
+        if !req.title.trim().is_empty() {
+            lines.push(req.title.trim().to_string());
+        }
+        if !req.caption.trim().is_empty() {
+            lines.push(req.caption.trim().to_string());
+        }
         let camera = [make.as_deref(), model.as_deref()]
             .into_iter()
             .flatten()
             .filter(|s| !s.is_empty())
             .collect::<Vec<_>>()
             .join(" ");
-        lines.push(if camera.is_empty() {
-            filename.clone()
-        } else {
-            camera
-        });
+        if !camera.is_empty() {
+            lines.push(camera);
+        }
         let mut params: Vec<String> = Vec::new();
         if let Some(v) = focal {
             params.push(format!("{v}mm"));
@@ -144,6 +149,9 @@ pub fn render_share_cards_inner(
         }
         if let Some(v) = &taken_at {
             lines.push(v.chars().take(10).collect());
+        }
+        if lines.is_empty() {
+            lines.push(filename.clone());
         }
         let _ = lens;
 

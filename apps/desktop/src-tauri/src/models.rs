@@ -291,7 +291,7 @@ pub struct ExportResult {
 #[serde(rename_all = "camelCase")]
 pub struct CollageRequest {
     pub photo_ids: Vec<i64>,
-    /// "grid" | "strip" | "featured"
+    /// "grid" | "strip" | "vertical" | "featured"
     pub layout: String,
     /// 网格列数（2-4），其他模板忽略
     pub cols: u32,
@@ -303,6 +303,9 @@ pub struct CollageRequest {
     pub size: u32,
     pub quality: u8,
     pub target_dir: String,
+    /// 顶部标题（Plog 长图用），可空
+    #[serde(default)]
+    pub title: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -327,6 +330,15 @@ pub struct ShareCardRequest {
     pub show_info: bool,
     pub watermark: String,
     pub target_dir: String,
+    /// Plog 标题（信息条首行 / 拍立得书写区）
+    #[serde(default)]
+    pub title: String,
+    /// 描述文案（标题下方一行）
+    #[serde(default)]
+    pub caption: String,
+    /// 拍立得相纸样式
+    #[serde(default)]
+    pub polaroid: bool,
 }
 
 #[derive(Debug, Default, Serialize)]

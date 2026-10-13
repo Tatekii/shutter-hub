@@ -380,6 +380,7 @@ fn collage_render_writes_grid_jpeg() {
         size: 512,
         quality: 90,
         target_dir: out_dir.to_string_lossy().into_owned(),
+        title: "海边".into(),
     };
     let result = desktop_lib::commands::render_collage_inner(&state, &req).unwrap();
     assert!(result.failed.is_empty(), "no failures: {:?}", result.failed);
@@ -591,6 +592,9 @@ fn share_card_renders_expected_size() {
         show_info: true,
         watermark: "Shutter Hub".into(),
         target_dir: out_dir.to_string_lossy().into_owned(),
+        title: "周末海边".into(),
+        caption: "记录夏天的风".into(),
+        polaroid: false,
     };
     let result = desktop_lib::commands::render_share_cards_inner(&state, &req).unwrap();
     assert_eq!(result.paths.len(), 1);

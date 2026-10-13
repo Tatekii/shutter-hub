@@ -74,6 +74,7 @@ pub fn render_collage_inner(
         req.radius,
         bg,
         req.size,
+        &req.title,
     );
     let (width, height) = canvas.dimensions();
 

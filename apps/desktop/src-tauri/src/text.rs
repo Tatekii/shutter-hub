@@ -156,6 +156,16 @@ pub fn draw_text_bottom_right(
     draw_text(img, text, x as i32, baseline as i32, scale_px, color, alpha)
 }
 
+/// 依据背景亮度选择对比色（深底白字 / 浅底深字）。
+pub fn contrast_color(bg: [u8; 3]) -> [u8; 3] {
+    let lum = (0.299 * bg[0] as f32 + 0.587 * bg[1] as f32 + 0.114 * bg[2] as f32) / 255.0;
+    if lum > 0.6 {
+        [30, 30, 30]
+    } else {
+        [245, 245, 245]
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
