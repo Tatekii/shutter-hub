@@ -609,6 +609,45 @@ fn share_card_renders_expected_size() {
     std::fs::remove_dir_all(ctx.dir.parent().unwrap()).ok();
 }
 
+#[test]
+fn develop_crop_and_rotation_apply_to_export() {
+    let _guard = LOCK.lock().unwrap();
+    let ctx = setup("developcrop");
+    let out_dir = ctx.dir.parent().unwrap().join("cropped");
+
+    make_jpeg(&ctx.dir.join("IMG_0500.jpg"), 400, 300, 71);
+    scan(&ctx);
+    let conn = db::open_db(&ctx.db).unwrap();
+    let id: i64 = conn
+        .query_row("SELECT id FROM photos", [], |r| r.get(0))
+        .unwrap();
+
+    let state = setup_state(&ctx);
+    // 旋转 90° → 300x400；再取左上一半 [0,0,0.5,0.5] → 150x200
+    let adj = desktop_lib::develop::Adjustments {
+        rotation: 90,
+        crop: [0.0, 0.0, 0.5, 0.5],
+        ..Default::default()
+    };
+    desktop_lib::commands::set_edit_inner(&state, id, &adj).unwrap();
+
+    let req = desktop_lib::models::ExportRequest {
+        photo_ids: vec![id],
+        target_dir: out_dir.to_string_lossy().into_owned(),
+        format: "jpeg".into(),
+        quality: 90,
+        max_dimension: None,
+        filename_suffix: "".into(),
+        watermark: None,
+    };
+    let result = desktop_lib::commands::export_photos_inner(&state, &req, |_| {}).unwrap();
+    assert_eq!(result.exported, 1);
+    let img = image::open(out_dir.join("IMG_0500.jpg")).unwrap();
+    assert_eq!((img.width(), img.height()), (150, 200));
+
+    std::fs::remove_dir_all(ctx.dir.parent().unwrap()).ok();
+}
+
 fn touch(path: &Path) {
     let bytes = std::fs::read(path).unwrap();
     std::thread::sleep(std::time::Duration::from_millis(5));
