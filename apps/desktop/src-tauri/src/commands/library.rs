@@ -106,16 +106,24 @@ pub fn get_photo(state: State<'_, AppState>, id: i64) -> Result<PhotoDto, String
 pub async fn get_viewer_preview(
     state: State<'_, AppState>,
     id: i64,
+    ignore_crop: Option<bool>,
 ) -> Result<Option<String>, String> {
     let state = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || get_viewer_preview_inner(&state, id))
-        .await
-        .map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || {
+        get_viewer_preview_inner(&state, id, ignore_crop.unwrap_or(false))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// 返回看图模式用的预览路径（懒生成，缓存在 previews 目录）。
 /// 有调色参数时返回调色预览（长边上限 2560）；否则为原尺寸预览。
-pub fn get_viewer_preview_inner(state: &AppState, id: i64) -> Result<Option<String>, String> {
+/// `ignore_crop=true` 时跳过裁剪（裁剪 UI 需要未裁切的画面叠加取景框）。
+pub fn get_viewer_preview_inner(
+    state: &AppState,
+    id: i64,
+    ignore_crop: bool,
+) -> Result<Option<String>, String> {
     let conn = db::open_db(&state.db_path).map_err(to_str)?;
     let (path, edit_json): (String, Option<String>) = conn
         .query_row(
@@ -131,8 +139,23 @@ pub fn get_viewer_preview_inner(state: &AppState, id: i64) -> Result<Option<Stri
         .filter(|a| !a.is_identity());
     if let Some(adj) = adj {
         let json = edit_json.as_deref().unwrap_or("");
-        if let Some(edited) = render_edit_preview(state, id, Path::new(&path), json, &adj)
-            .map_err(|e| format!("{e:#}"))?
+        // 裁剪 UI：渲染未裁切版本（旋转仍应用），保证取景框与画面一致
+        let adj = if ignore_crop {
+            crate::develop::Adjustments {
+                crop: [0.0, 0.0, 1.0, 1.0],
+                ..adj
+            }
+        } else {
+            adj
+        };
+        let hash_input = if ignore_crop {
+            format!("{json}|nocrop")
+        } else {
+            json.to_string()
+        };
+        if let Some(edited) =
+            render_edit_preview(state, id, Path::new(&path), &hash_input, &adj)
+                .map_err(|e| format!("{e:#}"))?
         {
             return Ok(Some(edited.to_string_lossy().into_owned()));
         }

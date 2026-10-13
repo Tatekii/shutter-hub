@@ -25,7 +25,12 @@ pub fn sidecar_path_for(photo_path: &Path) -> std::path::PathBuf {
     p
 }
 
-/// 读取 XMP sidecar 中的评分/色标/旗标（兼容 Lightroom 的 xmp:Rating / xmp:Label）。
+/// HSL 波段顺序（与 develop::HSL_BANDS 对应）与 XMP 字段名。
+const HSL_BAND_TAGS: [&str; 8] = [
+    "Red", "Orange", "Yellow", "Green", "Aqua", "Blue", "Purple", "Magenta",
+];
+
+/// 读取 XMP sidecar 中的评分/色标/旗标/调色（兼容 Lightroom 的 xmp / crs 字段）。
 pub fn read(photo_path: &Path) -> Option<SidecarMeta> {
     let sidecar = sidecar_path_for(photo_path);
     let text = std::fs::read_to_string(&sidecar).ok()?;
@@ -36,47 +41,83 @@ pub fn read(photo_path: &Path) -> Option<SidecarMeta> {
 
     let mut crs = crate::develop::Adjustments::default();
     let mut crs_seen = false;
+    let mut in_curve = false;
 
     let mut buf = Vec::new();
     loop {
         match reader.read_event_into(&mut buf) {
-            Ok(Event::Start(e)) => match e.local_name().as_ref() {
-                "Rating" => {
-                    let v = read_text_of(&mut reader, &mut buf);
-                    meta.rating = v.and_then(|s| s.trim().parse().ok());
-                }
-                "Label" => {
-                    meta.label = read_text_of(&mut reader, &mut buf);
-                }
-                "Flag" => {
-                    meta.flag = read_text_of(&mut reader, &mut buf);
-                }
-                name @ ("Exposure2012"
-                | "Contrast2012"
-                | "Highlights2012"
-                | "Shadows2012"
-                | "Temperature"
-                | "Tint"
-                | "Saturation") => {
-                    let name = name.to_string();
-                    let value = read_text_of(&mut reader, &mut buf)
-                        .and_then(|s| s.trim().parse::<f32>().ok());
-                    if let Some(v) = value {
-                        crs_seen = true;
-                        match name.as_str() {
-                            "Exposure2012" => crs.exposure = v,
-                            "Contrast2012" => crs.contrast = v,
-                            "Highlights2012" => crs.highlights = v,
-                            "Shadows2012" => crs.shadows = v,
-                            "Temperature" => crs.temperature = v,
-                            "Tint" => crs.tint = v,
-                            "Saturation" => crs.saturation = v,
-                            _ => {}
+            Ok(Event::Start(e)) => {
+                let local = e.local_name();
+                let name: &str = local.as_ref();
+                match name {
+                    "Rating" => {
+                        let v = read_text_of(&mut reader, &mut buf);
+                        meta.rating = v.and_then(|s| s.trim().parse().ok());
+                    }
+                    "Label" => {
+                        meta.label = read_text_of(&mut reader, &mut buf);
+                    }
+                    "Flag" => {
+                        meta.flag = read_text_of(&mut reader, &mut buf);
+                    }
+                    "ToneCurvePV2012" => {
+                        in_curve = true;
+                    }
+                    "li" if in_curve => {
+                        let v = read_text_of(&mut reader, &mut buf)
+                            .and_then(|s| parse_curve_point(&s));
+                        if let Some(p) = v {
+                            crs.curve.push(p);
+                            crs_seen = true;
+                        }
+                    }
+                    "Exposure2012" | "Contrast2012" | "Highlights2012" | "Shadows2012"
+                    | "Temperature" | "Tint" | "Saturation" | "CropTop" | "CropLeft"
+                    | "CropBottom" | "CropRight" | "Rotation" => {
+                        let name = name.to_string();
+                        let value = read_text_of(&mut reader, &mut buf)
+                            .and_then(|s| s.trim().parse::<f32>().ok());
+                        if let Some(v) = value {
+                            crs_seen = true;
+                            match name.as_str() {
+                                "Exposure2012" => crs.exposure = v,
+                                "Contrast2012" => crs.contrast = v,
+                                "Highlights2012" => crs.highlights = v,
+                                "Shadows2012" => crs.shadows = v,
+                                "Temperature" => crs.temperature = v,
+                                "Tint" => crs.tint = v,
+                                "Saturation" => crs.saturation = v,
+                                "CropTop" => crs.crop[0] = v,
+                                "CropLeft" => crs.crop[1] = v,
+                                "CropBottom" => crs.crop[2] = v,
+                                "CropRight" => crs.crop[3] = v,
+                                "Rotation" => crs.rotation = v.max(0.0) as u16,
+                                _ => {}
+                            }
+                        }
+                    }
+                    _ => {
+                        // HSL 16 个字段：SaturationAdjustment*/LuminanceAdjustment*
+                        if let Some((kind, band)) = hsl_tag_index(name) {
+                            let value = read_text_of(&mut reader, &mut buf)
+                                .and_then(|s| s.trim().parse::<f32>().ok());
+                            if let Some(v) = value {
+                                crs_seen = true;
+                                if kind == 's' {
+                                    crs.hsl_sat[band] = v;
+                                } else {
+                                    crs.hsl_lum[band] = v;
+                                }
+                            }
                         }
                     }
                 }
-                _ => {}
-            },
+            }
+            Ok(Event::End(e)) => {
+                if e.local_name().as_ref() == "ToneCurvePV2012" {
+                    in_curve = false;
+                }
+            }
             Ok(Event::Eof) => break,
             Err(_) => break,
             _ => {}
@@ -87,6 +128,29 @@ pub fn read(photo_path: &Path) -> Option<SidecarMeta> {
         meta.develop = Some(crs);
     }
     Some(meta)
+}
+
+/// "255, 128" → (1.0, 0.502)（Lightroom 曲线坐标为 0-255）。
+fn parse_curve_point(s: &str) -> Option<[f32; 2]> {
+    let (x, y) = s.split_once(',')?;
+    let x: f32 = x.trim().parse().ok()?;
+    let y: f32 = y.trim().parse().ok()?;
+    Some([(x / 255.0).clamp(0.0, 1.0), (y / 255.0).clamp(0.0, 1.0)])
+}
+
+/// SaturationAdjustmentRed → ('s', 0)；LuminanceAdjustmentBlue → ('l', 5)。
+fn hsl_tag_index(name: &str) -> Option<(char, usize)> {
+    let (kind, band) = if let Some(rest) = name.strip_prefix("SaturationAdjustment") {
+        ('s', rest)
+    } else if let Some(rest) = name.strip_prefix("LuminanceAdjustment") {
+        ('l', rest)
+    } else {
+        return None;
+    };
+    HSL_BAND_TAGS
+        .iter()
+        .position(|t| *t == band)
+        .map(|i| (kind, i))
 }
 
 fn read_text_of(reader: &mut Reader<&[u8]>, buf: &mut Vec<u8>) -> Option<String> {
@@ -127,15 +191,73 @@ pub fn write_develop(photo_path: &Path, adj: &crate::develop::Adjustments) -> Re
         ("Tint", adj.tint),
         ("Saturation", adj.saturation),
     ];
+    let identity = adj.is_identity();
     for (tag, value) in fields {
-        let text = if adj.is_identity() {
+        let text = if identity {
             String::new()
         } else {
             format_float(value)
         };
         replace_or_insert(photo_path, "crs", tag, &text)?;
     }
+
+    // 裁剪（作用于旋转后的图像）与旋转（shutterhub 命名空间）
+    let crop_fields: [(&str, f32); 4] = [
+        ("CropTop", adj.crop[0]),
+        ("CropLeft", adj.crop[1]),
+        ("CropBottom", adj.crop[2]),
+        ("CropRight", adj.crop[3]),
+    ];
+    for (tag, value) in crop_fields {
+        let text = if identity || adj.crop == [0.0, 0.0, 1.0, 1.0] {
+            String::new()
+        } else {
+            format!("{value:.4}")
+        };
+        replace_or_insert(photo_path, "crs", tag, &text)?;
+    }
+    let rotation = if identity { String::new() } else { (adj.rotation % 360).to_string() };
+    replace_or_insert(photo_path, "shutterhub", "Rotation", &rotation)?;
+
+    // HSL 8 波段饱和度 / 亮度
+    for (i, band) in HSL_BAND_TAGS.iter().enumerate() {
+        let sat_tag = format!("SaturationAdjustment{band}");
+        let lum_tag = format!("LuminanceAdjustment{band}");
+        let sat = if identity || adj.hsl_sat[i].abs() < 0.001 {
+            String::new()
+        } else {
+            format_float(adj.hsl_sat[i])
+        };
+        let lum = if identity || adj.hsl_lum[i].abs() < 0.001 {
+            String::new()
+        } else {
+            format_float(adj.hsl_lum[i])
+        };
+        replace_or_insert(photo_path, "crs", &sat_tag, &sat)?;
+        replace_or_insert(photo_path, "crs", &lum_tag, &lum)?;
+    }
+
+    // RGB 复合曲线（Lightroom ToneCurvePV2012，0-255 坐标）
+    let curve = if identity { String::new() } else { curve_seq(&adj.curve) };
+    replace_or_insert(photo_path, "crs", "ToneCurvePV2012", &curve)?;
     Ok(())
+}
+
+fn curve_seq(points: &[[f32; 2]]) -> String {
+    if points.is_empty() {
+        return String::new();
+    }
+    let lis: Vec<String> = points
+        .iter()
+        .map(|p| {
+            format!(
+                "<rdf:li>{}, {}</rdf:li>",
+                (p[0].clamp(0.0, 1.0) * 255.0).round() as i32,
+                (p[1].clamp(0.0, 1.0) * 255.0).round() as i32
+            )
+        })
+        .collect();
+    format!("<rdf:Seq>{}</rdf:Seq>", lis.join(""))
 }
 
 /// 紧凑数字格式：去掉多余小数位。
@@ -324,6 +446,20 @@ mod tests {
             exposure: 0.75,
             contrast: -20.0,
             temperature: 15.5,
+            crop: [0.05, 0.1, 0.9, 0.95],
+            rotation: 90,
+            curve: vec![[0.0, 0.0], [0.5, 0.62], [1.0, 1.0]],
+            hsl_sat: {
+                let mut a = [0.0f32; 8];
+                a[0] = 30.0;
+                a[5] = -15.0;
+                a
+            },
+            hsl_lum: {
+                let mut a = [0.0f32; 8];
+                a[4] = 20.0;
+                a
+            },
             ..Default::default()
         };
         write_develop(&photo, &adj).unwrap();
@@ -331,17 +467,30 @@ mod tests {
         let text = std::fs::read_to_string(sidecar_path_for(&photo)).unwrap();
         assert!(text.contains("xmlns:crs="), "namespace declared: {text}");
         assert!(text.contains("<crs:Exposure2012>0.75</crs:Exposure2012>"));
+        assert!(text.contains("ToneCurvePV2012"));
+        assert!(text.contains("<rdf:li>128, 158</rdf:li>"), "curve points 0-255: {text}");
 
         let meta = read(&photo).unwrap();
         let develop = meta.develop.expect("crs fields parsed");
         assert!((develop.exposure - 0.75).abs() < 1e-6);
         assert!((develop.contrast - -20.0).abs() < 1e-6);
         assert!((develop.temperature - 15.5).abs() < 1e-6);
+        assert!(develop.rotation == 90);
+        assert!((develop.crop[0] - 0.05).abs() < 0.01);
+        assert!((develop.crop[3] - 0.95).abs() < 0.01);
+        assert_eq!(develop.curve.len(), 3);
+        assert!((develop.curve[1][1] - 0.62).abs() < 0.01);
+        assert!((develop.hsl_sat[0] - 30.0).abs() < 1e-3);
+        assert!((develop.hsl_sat[5] - -15.0).abs() < 1e-3);
+        assert!((develop.hsl_lum[4] - 20.0).abs() < 1e-3);
 
-        // identity → 移除全部 crs 字段
+        // identity → 移除全部 crs / rotation / 曲线字段
         write_develop(&photo, &crate::develop::Adjustments::default()).unwrap();
         let text = std::fs::read_to_string(sidecar_path_for(&photo)).unwrap();
         assert!(!text.contains("Exposure2012"), "cleared: {text}");
+        assert!(!text.contains("ToneCurvePV2012"));
+        assert!(!text.contains("SaturationAdjustmentRed"));
+        assert!(!text.contains("shutterhub:Rotation"));
         assert!(read(&photo).unwrap().develop.is_none());
 
         std::fs::remove_dir_all(&dir).ok();

@@ -478,7 +478,7 @@ fn develop_edit_roundtrip_and_export_applies() {
     assert!(sidecar.contains("Exposure2012"), "crs written: {sidecar}");
 
     // 调色预览生成
-    let preview = desktop_lib::commands::get_viewer_preview_inner(&state, id)
+    let preview = desktop_lib::commands::get_viewer_preview_inner(&state, id, false)
         .unwrap()
         .expect("edit preview");
     assert!(preview.contains("_edit_"), "edited preview path: {preview}");
@@ -511,7 +511,7 @@ fn develop_edit_roundtrip_and_export_applies() {
 
     // 重置后预览回到非调色路径
     desktop_lib::commands::set_edit_inner(&state, id, &Default::default()).unwrap();
-    let preview2 = desktop_lib::commands::get_viewer_preview_inner(&state, id)
+    let preview2 = desktop_lib::commands::get_viewer_preview_inner(&state, id, false)
         .unwrap()
         .unwrap();
     assert!(!preview2.contains("_edit_"), "reset: {preview2}");
@@ -629,7 +629,7 @@ fn viewer_preview_is_full_size_and_reused() {
         .unwrap();
 
     let state = setup_state(&ctx);
-    let out = desktop_lib::commands::get_viewer_preview_inner(&state, id)
+    let out = desktop_lib::commands::get_viewer_preview_inner(&state, id, false)
         .unwrap()
         .expect("viewer preview generated");
     let img = image::open(&out).unwrap();
@@ -639,7 +639,7 @@ fn viewer_preview_is_full_size_and_reused() {
     assert_eq!(std::fs::read(&out).unwrap(), std::fs::read(&path).unwrap());
 
     // 再次请求应复用缓存
-    let out2 = desktop_lib::commands::get_viewer_preview_inner(&state, id)
+    let out2 = desktop_lib::commands::get_viewer_preview_inner(&state, id, false)
         .unwrap()
         .expect("preview reused");
     assert_eq!(out, out2);
