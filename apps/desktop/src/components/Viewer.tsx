@@ -14,6 +14,8 @@ import {
 import { useT } from "../lib/i18n";
 import { useApp } from "../lib/store";
 import type { Adjustments, FaceDto } from "../lib/types";
+import { DevelopPanel, type DevelopTab } from "./DevelopPanel";
+import { CropOverlay } from "./CropOverlay";
 
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 8;
@@ -52,6 +54,8 @@ export function Viewer() {
     h: number;
   } | null>(null);
   const [developOpen, setDevelopOpen] = useState(false);
+  const [developTab, setDevelopTab] = useState<DevelopTab>("basic");
+  const [cropAspect, setCropAspect] = useState<number | null>(null);
   const [editAdj, setEditAdj] = useState<Adjustments | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [savedTick, setSavedTick] = useState(false);
@@ -75,7 +79,9 @@ export function Viewer() {
     setZoom(1);
     setPan({ x: 0, y: 0 });
     if (photo.mediaType === "video") return;
-    void getViewerPreview(photo.id)
+    // 裁剪 UI 需要未裁切画面（取景框叠加）
+    const cropMode = developOpen && developTab === "crop";
+    void getViewerPreview(photo.id, cropMode)
       .then((path) => {
         if (cancelled) return;
         if (path) setUrl(convertFileSrc(path));
@@ -87,7 +93,7 @@ export function Viewer() {
     return () => {
       cancelled = true;
     };
-  }, [photo?.id, reloadKey]);
+  }, [photo?.id, reloadKey, developOpen, developTab]);
 
   // 载入当前照片的调色参数
   useEffect(() => {
@@ -379,97 +385,69 @@ export function Viewer() {
             {failed && <div className="viewer-status">{t("viewer.unsupported")}</div>}
           </>
         )}
+        {developOpen && developTab === "crop" && editAdj && imgRect && natural && (
+          <CropOverlay
+            crop={editAdj.crop}
+            aspect={cropAspect}
+            imgRect={imgRect}
+            imageAspect={
+              editAdj.rotation % 180 === 90
+                ? natural.h / Math.max(1, natural.w)
+                : natural.w / Math.max(1, natural.h)
+            }
+            onCommit={(crop) => updateAdj({ crop })}
+          />
+        )}
       </div>
 
       {developOpen && editAdj && photo.mediaType !== "video" && (
-        <div className="develop-panel">
-          <div className="develop-header">
-            <span className="develop-title">🎚 {t("develop.title")}</span>
-            <span className={`develop-saved ${savedTick ? "on" : ""}`}>
-              {savedTick ? t("develop.saved") : ""}
-            </span>
-            <button className="icon-btn" onClick={() => setDevelopOpen(false)}>
-              ×
-            </button>
-          </div>
-          <DevelopSlider
-            label={t("develop.exposure")}
-            value={editAdj.exposure}
-            min={-5}
-            max={5}
-            step={0.05}
-            onChange={(v) => updateAdj({ exposure: v })}
-          />
-          <DevelopSlider
-            label={t("develop.contrast")}
-            value={editAdj.contrast}
-            min={-100}
-            max={100}
-            step={1}
-            onChange={(v) => updateAdj({ contrast: v })}
-          />
-          <DevelopSlider
-            label={t("develop.highlights")}
-            value={editAdj.highlights}
-            min={-100}
-            max={100}
-            step={1}
-            onChange={(v) => updateAdj({ highlights: v })}
-          />
-          <DevelopSlider
-            label={t("develop.shadows")}
-            value={editAdj.shadows}
-            min={-100}
-            max={100}
-            step={1}
-            onChange={(v) => updateAdj({ shadows: v })}
-          />
-          <DevelopSlider
-            label={t("develop.temperature")}
-            value={editAdj.temperature}
-            min={-100}
-            max={100}
-            step={1}
-            onChange={(v) => updateAdj({ temperature: v })}
-          />
-          <DevelopSlider
-            label={t("develop.tint")}
-            value={editAdj.tint}
-            min={-100}
-            max={100}
-            step={1}
-            onChange={(v) => updateAdj({ tint: v })}
-          />
-          <DevelopSlider
-            label={t("develop.saturation")}
-            value={editAdj.saturation}
-            min={-100}
-            max={100}
-            step={1}
-            onChange={(v) => updateAdj({ saturation: v })}
-          />
-          <div className="develop-actions">
-            <button
-              className="btn"
-              onClick={() => {
-                const reset: Adjustments = {
-                  exposure: 0,
-                  contrast: 0,
-                  highlights: 0,
-                  shadows: 0,
-                  temperature: 0,
-                  tint: 0,
-                  saturation: 0,
-                };
-                setEditAdj(reset);
-                scheduleSave(reset);
-              }}
-            >
-              {t("develop.reset")}
-            </button>
-          </div>
-          <div className="develop-hint">{t("develop.hint")}</div>
-        </div>
+        <DevelopPanel
+          adj={editAdj}
+          tab={developTab}
+          setTab={setDevelopTab}
+          savedTick={savedTick}
+          cropAspect={cropAspect}
+          onCropAspect={(a) => {
+            setCropAspect(a);
+            // 选择固定比例时立即给出居中最大裁剪框
+            if (a != null && a > 0 && natural) {
+              const rotated = editAdj.rotation % 180 === 90;
+              const w = rotated ? natural.h : natural.w;
+              const h = rotated ? natural.w : natural.h;
+              const ar = w / h;
+              const cw = a >= ar ? a / ar : 1;
+              const ch = a >= ar ? 1 : ar / a;
+              const crop: [number, number, number, number] = [
+                round4((1 - ch) / 2),
+                round4((1 - cw) / 2),
+                round4((1 + ch) / 2),
+                round4((1 + cw) / 2),
+              ];
+              updateAdj({ crop });
+            }
+          }}
+          onPatch={(patch) => updateAdj(patch)}
+          onReset={() => {
+            const reset: Adjustments = {
+              exposure: 0,
+              contrast: 0,
+              highlights: 0,
+              shadows: 0,
+              temperature: 0,
+              tint: 0,
+              saturation: 0,
+              crop: [0, 0, 1, 1],
+              rotation: 0,
+              curve: [],
+              hslSat: [0, 0, 0, 0, 0, 0, 0, 0],
+              hslLum: [0, 0, 0, 0, 0, 0, 0, 0],
+            };
+            setEditAdj(reset);
+            setCropAspect(null);
+            scheduleSave(reset);
+          }}
+          onClose={() => setDevelopOpen(false)}
+        />
       )}
 
       <div className="viewer-bar">
@@ -550,35 +528,7 @@ export function Viewer() {
   );
 }
 
-function DevelopSlider({
-  label,
-  value,
-  min,
-  max,
-  step,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  onChange: (v: number) => void;
-}) {
-  const decimals = step >= 1 ? 0 : 2;
-  return (
-    <label className="develop-slider" title="双击归零">
-      <span className="develop-slider-label">{label}</span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        onDoubleClick={() => onChange(0)}
-      />
-      <span className="develop-slider-value">{value.toFixed(decimals)}</span>
-    </label>
-  );
+
+function round4(v: number): number {
+  return Math.round(v * 10000) / 10000;
 }

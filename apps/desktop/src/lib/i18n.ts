@@ -332,6 +332,10 @@ const STRINGS: Record<string, { zh: string; en: string }> = {
 
   // develop
   "develop.title": { zh: "调色", en: "Develop" },
+  "develop.tabBasic": { zh: "基础", en: "Basic" },
+  "develop.tabCurve": { zh: "曲线", en: "Curve" },
+  "develop.tabHsl": { zh: "HSL", en: "HSL" },
+  "develop.tabCrop": { zh: "裁剪", en: "Crop" },
   "develop.exposure": { zh: "曝光", en: "Exposure" },
   "develop.contrast": { zh: "对比", en: "Contrast" },
   "develop.highlights": { zh: "高光", en: "Highlights" },
@@ -344,6 +348,32 @@ const STRINGS: Record<string, { zh: string; en: string }> = {
   "develop.hint": {
     zh: "自动保存到 XMP（crs），Lightroom 可直接读取",
     en: "Auto-saves to XMP (crs), readable by Lightroom",
+  },
+
+  // hsl
+  "hsl.saturation": { zh: "饱和度", en: "Saturation" },
+  "hsl.luminance": { zh: "亮度", en: "Luminance" },
+  "hsl.hint": {
+    zh: "选择色环上的波段后调整；写入 XMP 与 Lightroom 互通",
+    en: "Pick a hue band, then adjust; written to XMP for Lightroom",
+  },
+  "hsl.red": { zh: "红", en: "Red" },
+  "hsl.orange": { zh: "橙", en: "Orange" },
+  "hsl.yellow": { zh: "黄", en: "Yellow" },
+  "hsl.green": { zh: "绿", en: "Green" },
+  "hsl.aqua": { zh: "青", en: "Aqua" },
+  "hsl.blue": { zh: "蓝", en: "Blue" },
+  "hsl.purple": { zh: "紫", en: "Purple" },
+  "hsl.magenta": { zh: "品红", en: "Magenta" },
+
+  // crop
+  "crop.original": { zh: "原始", en: "Original" },
+  "crop.free": { zh: "自由", en: "Free" },
+  "crop.rotate": { zh: "旋转 90°", en: "Rotate 90°" },
+  "crop.resetRect": { zh: "重置取景框", en: "Reset crop" },
+  "crop.hint": {
+    zh: "拖拽四角调整取景框；裁剪在旋转后的空间生效",
+    en: "Drag the corners; crop applies in rotated space",
   },
 
   // app

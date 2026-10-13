@@ -191,6 +191,14 @@ export interface Adjustments {
   temperature: number;
   tint: number;
   saturation: number;
+  /** [top, left, bottom, right]，0..1，作用于旋转后的图像 */
+  crop: [number, number, number, number];
+  /** 顺时针旋转：0 | 90 | 180 | 270 */
+  rotation: number;
+  /** RGB 复合曲线控制点（0..1，x 升序） */
+  curve: [number, number][];
+  hslSat: number[];
+  hslLum: number[];
 }
 
 export interface ExportRequest {

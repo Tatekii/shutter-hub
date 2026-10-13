@@ -41,8 +41,8 @@ export const listFolders = () => invoke<FolderDto[]>("list_folders");
 export const listPhotos = (query: PhotoQuery) =>
   invoke<PhotoDto[]>("list_photos", { query });
 export const getPhoto = (id: number) => invoke<PhotoDto>("get_photo", { id });
-export const getViewerPreview = (id: number) =>
-  invoke<string | null>("get_viewer_preview", { id });
+export const getViewerPreview = (id: number, ignoreCrop?: boolean) =>
+  invoke<string | null>("get_viewer_preview", { id, ignoreCrop });
 export const getStats = () => invoke<LibraryStats>("get_stats");
 export const listFacets = () => invoke<FacetDto>("list_facets");
 
