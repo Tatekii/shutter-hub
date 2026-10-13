@@ -4,7 +4,7 @@ import { thumbUrl } from "../lib/api";
 import { useT } from "../lib/i18n";
 import { useApp } from "../lib/store";
 
-type LayoutKind = "grid" | "strip" | "featured";
+type LayoutKind = "grid" | "strip" | "featured" | "vertical";
 
 const BACKGROUNDS: Array<{ hex: string; key: string }> = [
   { hex: "#ffffff", key: "collage.bgWhite" },
@@ -31,6 +31,7 @@ export function CollageDialog() {
   const [radius, setRadius] = useState(24);
   const [background, setBackground] = useState("#ffffff");
   const [size, setSize] = useState(2048);
+  const [title, setTitle] = useState("");
   const [targetDir, setTargetDir] = useState(
     () => localStorage.getItem(LAST_DIR_KEY) ?? "",
   );
@@ -43,18 +44,27 @@ export function CollageDialog() {
   // 与后端 layout() 等价的预览排布
   const n = Math.max(1, selected.length);
   const effective = layout === "featured" ? Math.min(n, 3) : n;
-  const gridCols = layout === "grid" ? cols : layout === "strip" ? Math.min(effective, 6) : 3;
+  const gridCols =
+    layout === "grid" ? cols : layout === "strip" ? Math.min(effective, 6) : layout === "vertical" ? 1 : 3;
   const gridRows =
-    layout === "strip" ? 1 : layout === "featured" ? 2 : Math.ceil(effective / cols);
+    layout === "strip"
+      ? 1
+      : layout === "featured"
+        ? 2
+        : layout === "vertical"
+          ? Math.min(effective, 8)
+          : Math.ceil(effective / cols);
 
   // 按输出坐标系计算预览缩放（保持一致的比例观感）
   const cellOut = Math.max(16, (size - gap * (gridCols + 1)) / gridCols);
   const outW = gridCols * cellOut + gap * (gridCols + 1);
-  const outH = gridRows * cellOut + gap * (gridRows + 1);
-  const scale = PREVIEW_W / outW;
+  const outH = gridRows * cellOut + gap * (gridRows + 1) + (title.trim() ? size / 12 : 0);
+  const previewW = layout === "vertical" ? 150 : PREVIEW_W;
+  const scale = previewW / outW;
   const previewH = Math.round(outH * scale);
   const gapPx = Math.max(0, Math.round(gap * scale));
   const radiusPx = Math.round(radius * scale);
+  const titleH = title.trim() ? Math.round((size / 12) * scale) : 0;
 
   const pickFolder = async () => {
     setPicking(true);
@@ -81,6 +91,7 @@ export function CollageDialog() {
       size,
       quality: 92,
       targetDir,
+      title,
     });
   };
 
@@ -121,15 +132,21 @@ export function CollageDialog() {
               <div
                 className="collage-preview"
                 style={{
-                  width: PREVIEW_W,
+                  width: previewW,
                   height: previewH,
                   background,
                   padding: gapPx,
                   gap: gapPx,
+                  paddingTop: titleH > 0 ? titleH + gapPx : gapPx,
                   gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
                   gridAutoRows: "1fr",
                 }}
               >
+                {title.trim() && (
+                  <div className="collage-preview-title" style={{ top: 0, height: titleH }}>
+                    {title}
+                  </div>
+                )}
                 {selected.slice(0, layout === "featured" ? 3 : 9).map((p, i) => {
                   const url = thumbUrl(p.thumbPath);
                   const span =
@@ -155,6 +172,7 @@ export function CollageDialog() {
                     {(
                       [
                         ["grid", "collage.layoutGrid"],
+                        ["vertical", "collage.layoutVertical"],
                         ["strip", "collage.layoutStrip"],
                         ["featured", "collage.layoutFeatured"],
                       ] as Array<[LayoutKind, string]>
@@ -243,6 +261,18 @@ export function CollageDialog() {
                       />
                     ))}
                   </div>
+                </div>
+
+                <div className="export-section">
+                  <div className="export-label">{t("collage.titleLabel")}</div>
+                  <input
+                    type="text"
+                    className="share-watermark-input"
+                    value={title}
+                    disabled={collageBusy}
+                    placeholder={t("collage.titlePlaceholder")}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
                 </div>
 
                 <div className="export-section">

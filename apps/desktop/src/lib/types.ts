@@ -218,7 +218,7 @@ export interface ExportResult {
 
 export interface CollageRequest {
   photoIds: number[];
-  layout: "grid" | "strip" | "featured";
+  layout: "grid" | "strip" | "featured" | "vertical";
   cols: number;
   gap: number;
   radius: number;
@@ -226,6 +226,7 @@ export interface CollageRequest {
   size: number;
   quality: number;
   targetDir: string;
+  title?: string;
 }
 
 export interface CollageResult {
@@ -243,6 +244,9 @@ export interface ShareCardRequest {
   showInfo: boolean;
   watermark: string;
   targetDir: string;
+  title?: string;
+  caption?: string;
+  polaroid?: boolean;
 }
 
 export interface ShareCardResult {

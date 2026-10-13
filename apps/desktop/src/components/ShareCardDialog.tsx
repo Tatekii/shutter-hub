@@ -5,6 +5,7 @@ import { useT } from "../lib/i18n";
 import { useApp } from "../lib/store";
 
 type Aspect = "1:1" | "4:5" | "3:4";
+type StylePreset = "classic" | "plog" | "polaroid" | "plain";
 
 const BACKGROUNDS: Array<{ hex: string; key: string }> = [
   { hex: "#ffffff", key: "collage.bgWhite" },
@@ -35,9 +36,13 @@ export function ShareCardDialog() {
   const photos = useApp((s) => s.photos);
 
   const [aspect, setAspect] = useState<Aspect>("4:5");
+  const [stylePreset, setStylePreset] = useState<StylePreset>("classic");
   const [background, setBackground] = useState("#ffffff");
   const [showInfo, setShowInfo] = useState(true);
+  const [title, setTitle] = useState("");
+  const [caption, setCaption] = useState("");
   const [watermark, setWatermark] = useState("");
+  const polaroid = stylePreset === "polaroid";
   const [targetDir, setTargetDir] = useState(
     () => localStorage.getItem(LAST_DIR_KEY) ?? "",
   );
@@ -52,7 +57,10 @@ export function ShareCardDialog() {
 
   const infoLines = (p: NonNullable<typeof sample>) => {
     const lines: string[] = [];
-    lines.push([p.cameraMake, p.cameraModel].filter(Boolean).join(" ") || p.filename);
+    if (title.trim()) lines.push(title.trim());
+    if (caption.trim()) lines.push(caption.trim());
+    const camera = [p.cameraMake, p.cameraModel].filter(Boolean).join(" ") || p.filename;
+    lines.push(camera);
     const params: string[] = [];
     if (p.focalLength != null) params.push(`${p.focalLength}mm`);
     if (p.aperture != null) params.push(`f/${p.aperture}`);
@@ -61,6 +69,22 @@ export function ShareCardDialog() {
     if (params.length) lines.push(params.join("  ·  "));
     if (p.takenAt) lines.push(p.takenAt.slice(0, 10));
     return lines;
+  };
+
+  const applyPreset = (preset: StylePreset) => {
+    setStylePreset(preset);
+    if (preset === "classic") {
+      setBackground("#ffffff");
+      setShowInfo(true);
+    } else if (preset === "plog") {
+      setBackground("#f5f0e8");
+      setShowInfo(true);
+    } else if (preset === "polaroid") {
+      setBackground("#ffffff");
+      setShowInfo(false);
+    } else {
+      setShowInfo(false);
+    }
   };
 
   const pickFolder = async () => {
@@ -86,6 +110,9 @@ export function ShareCardDialog() {
       showInfo,
       watermark,
       targetDir,
+      title: title.trim(),
+      caption: caption.trim(),
+      polaroid,
     });
   };
 
@@ -140,14 +167,21 @@ export function ShareCardDialog() {
         ) : (
           <>
             <div className="collage-body">
-              {/* 预览：与后端版式一致（照片 + 信息条 + 水印） */}
+              {/* 预览：与后端版式一致（照片 + 信息条 / 拍立得书写区 + 水印） */}
               <div
-                className="share-preview"
+                className={`share-preview ${polaroid ? "share-preview-polaroid" : ""}`}
                 style={{
                   width: PREVIEW_W,
                   height: Math.round(PREVIEW_W * aspectRatio),
                   background,
-                  padding: PREVIEW_W / 20,
+                  ...(polaroid
+                    ? {
+                        paddingTop: PREVIEW_W / 16,
+                        paddingLeft: PREVIEW_W / 16,
+                        paddingRight: PREVIEW_W / 16,
+                        paddingBottom: PREVIEW_W / 8,
+                      }
+                    : { padding: PREVIEW_W / 20 }),
                 }}
               >
                 {sample && (
@@ -160,18 +194,50 @@ export function ShareCardDialog() {
                         <span className="share-preview-watermark">{watermark}</span>
                       )}
                     </div>
-                    {showInfo && (
-                      <div className="share-preview-info" style={{ color: textColor }}>
-                        {infoLines(sample).map((line, i) => (
-                          <span key={i}>{line}</span>
-                        ))}
+                    {polaroid ? (
+                      <div className="share-preview-polaroid-caption" style={{ color: textColor }}>
+                        {title.trim() && (
+                          <span className="share-preview-polaroid-title">{title}</span>
+                        )}
+                        {caption.trim() && <span>{caption}</span>}
                       </div>
+                    ) : (
+                      showInfo && (
+                        <div className="share-preview-info" style={{ color: textColor }}>
+                          {infoLines(sample).map((line, i) => (
+                            <span key={i}>{line}</span>
+                          ))}
+                        </div>
+                      )
                     )}
                   </>
                 )}
               </div>
 
               <div className="collage-options">
+                <div className="export-section">
+                  <div className="export-label">{t("share.style")}</div>
+                  <div className="export-presets">
+                    {(
+                      [
+                        ["classic", "share.styleClassic"],
+                        ["plog", "share.stylePlog"],
+                        ["polaroid", "share.stylePolaroid"],
+                        ["plain", "share.stylePlain"],
+                      ] as Array<[StylePreset, string]>
+                    ).map(([preset, key]) => (
+                      <button
+                        key={preset}
+                        className={`btn ${stylePreset === preset ? "btn-active" : ""}`}
+                        disabled={shareBusy}
+                        onClick={() => applyPreset(preset)}
+                      >
+                        {t(key)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="export-section">
                   <div className="export-label">{t("share.aspect")}</div>
                   <div className="export-presets">
@@ -213,6 +279,30 @@ export function ShareCardDialog() {
                   />
                   {t("share.showInfo")}
                 </label>
+
+                <div className="export-section">
+                  <div className="export-label">{t("share.titleLabel")}</div>
+                  <input
+                    type="text"
+                    className="share-watermark-input"
+                    value={title}
+                    disabled={shareBusy}
+                    placeholder={t("share.titlePlaceholder")}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </div>
+
+                <div className="export-section">
+                  <div className="export-label">{t("share.captionLabel")}</div>
+                  <input
+                    type="text"
+                    className="share-watermark-input"
+                    value={caption}
+                    disabled={shareBusy}
+                    placeholder={t("share.captionPlaceholder")}
+                    onChange={(e) => setCaption(e.target.value)}
+                  />
+                </div>
 
                 <div className="export-section">
                   <div className="export-label">{t("share.watermark")}</div>
