@@ -50,3 +50,16 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+# 开发模式下 RAW 显影 / 图像编解码保持优化：否则真实 RAW 的去马赛克会让
+# 调色预览等待数分钟（debug 未优化）。
+[profile.dev.package.rawler]
+opt-level = 3
+
+[profile.dev.package.image]
+opt-level = 3
+
+# 本包在 dev 下也开启优化：调色 / 合成 / 编码等像素级热路径否则慢一个数量级，
+# 滑杆交互会从毫秒级退化到秒级。
+[profile.dev.package.desktop]
+opt-level = 2

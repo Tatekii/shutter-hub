@@ -39,6 +39,7 @@ Shutter Hub — Tauri 2 desktop app for local photo asset management. pnpm works
 - `tests/backend_integration.rs` generates its own JPEG fixtures in temp dirs; no external fixtures or services required
 - A global `Mutex` serializes the integration tests (shared WAL DB / temp-dir interference) — don't remove it
 - `ai::tests::ai_models_download_and_infer` is `#[ignore]`d (downloads ~180MB from HuggingFace); run manually with `cargo test -- --ignored` when touching the ONNX pipeline
+- `real_raw_edit_e2e` (ignored) exercises the full pipeline on real photo folders: `SHUTTER_HUB_TEST_DIR=/path/to/photos cargo test --test backend_integration real_raw_edit_e2e -- --ignored --nocapture`. It writes XMP sidecars next to sources (real product behavior) and cleans them up if it created them; outputs land in `SHUTTER_HUB_TEST_OUT` (default temp dir)
 
 ## Misc
 

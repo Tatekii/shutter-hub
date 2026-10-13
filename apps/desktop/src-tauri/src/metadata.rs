@@ -49,8 +49,29 @@ pub fn extract(path: &Path) -> PhotoMeta {
 
 fn exif_text(exif: &exif::Exif, tag: exif::Tag) -> Option<String> {
     exif.get_field(tag, exif::In::PRIMARY)
-        .map(|f| f.display_value().to_string())
+        .map(|f| clean_exif_text(f.display_value().to_string()))
         .filter(|s| !s.is_empty())
+}
+
+/// display_value() 会给 Ascii 字段加引号（如 `"SONY"`），去掉引号与空白。
+fn clean_exif_text(s: String) -> String {
+    s.trim().trim_matches('"').trim().to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strips_quotes_from_exif_text() {
+        assert_eq!(clean_exif_text("\"SONY\"".into()), "SONY");
+        assert_eq!(clean_exif_text("\"ILCE-6700\"".into()), "ILCE-6700");
+        assert_eq!(clean_exif_text("  Canon  ".into()), "Canon");
+        assert_eq!(
+            clean_exif_text("\"NIKON CORPORATION\"".into()),
+            "NIKON CORPORATION"
+        );
+    }
 }
 
 fn exif_int(exif: &exif::Exif, tag: exif::Tag) -> Option<i64> {

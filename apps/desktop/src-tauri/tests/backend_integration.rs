@@ -648,6 +648,279 @@ fn develop_crop_and_rotation_apply_to_export() {
     std::fs::remove_dir_all(ctx.dir.parent().unwrap()).ok();
 }
 
+/// 真实照片目录的端到端编辑测试（含 RAW）：
+/// `SHUTTER_HUB_TEST_DIR=/path/to/photos cargo test --test backend_integration real_raw_edit_e2e -- --ignored --nocapture`
+///
+/// 流程：扫描目录 → 对首张 RAW 依次执行 普通预览 → 调色（基础/曲线/HSL/裁剪）
+/// → 调色预览（含 ignore-crop 变体）→ 导出 JPEG/TIFF → 分享卡（应用调色）。
+#[test]
+#[ignore = "requires real photos via SHUTTER_HUB_TEST_DIR"]
+fn real_raw_edit_e2e() {
+    use std::time::Instant;
+
+    let Ok(source_dir) = std::env::var("SHUTTER_HUB_TEST_DIR") else {
+        eprintln!("SHUTTER_HUB_TEST_DIR not set, skipping");
+        return;
+    };
+    let out_dir = std::env::var("SHUTTER_HUB_TEST_OUT")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::env::temp_dir().join("shutter_hub_raw_test"));
+    std::fs::remove_dir_all(&out_dir).ok();
+    std::fs::create_dir_all(&out_dir).unwrap();
+
+    // 独立工作区（不污染真实应用数据）
+    let base = std::env::temp_dir().join(format!("shutter_hub_e2e_{}", std::process::id()));
+    std::fs::remove_dir_all(&base).ok();
+    let cache = base.join("thumbs");
+    let previews = base.join("previews");
+    std::fs::create_dir_all(&cache).unwrap();
+    std::fs::create_dir_all(&previews).unwrap();
+    let db_path = base.join("e2e.db");
+    let state = desktop_lib::AppState {
+        db_path: db_path.clone(),
+        cache_dir: cache.clone(),
+        preview_dir: previews.clone(),
+        model_dir: base.join("models"),
+        ai_busy: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+    };
+
+    // 索引源目录
+    let t0 = Instant::now();
+    {
+        let conn = db::open_db(&db_path).unwrap();
+        conn.execute("INSERT OR IGNORE INTO folders (path) VALUES (?1)", [&source_dir])
+            .unwrap();
+    }
+    let folder_id: i64 = db::open_db(&db_path)
+        .unwrap()
+        .query_row("SELECT id FROM folders WHERE path = ?1", [&source_dir], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    let stats = desktop_lib::indexer::scan_folder(
+        folder_id,
+        std::path::Path::new(&source_dir),
+        &db_path,
+        &cache,
+        |_| {},
+    )
+    .unwrap();
+    eprintln!(
+        "scan: {} files in {:.1}s (added {})",
+        stats.total,
+        t0.elapsed().as_secs_f32(),
+        stats.added
+    );
+
+    // 找到 RAW 与普通照片
+    let conn = db::open_db(&db_path).unwrap();
+    let raws: Vec<(i64, String)> = {
+        let mut stmt = conn
+            .prepare("SELECT id, path FROM photos WHERE media_type = 'photo'")
+            .unwrap();
+        let rows = stmt
+            .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        rows.into_iter()
+            .filter(|(_, p)| desktop_lib::raw::is_raw(std::path::Path::new(p)))
+            .collect()
+    };
+    if raws.is_empty() {
+        eprintln!("no RAW photos found in {source_dir}, skipping");
+        std::fs::remove_dir_all(&base).ok();
+        return;
+    }
+    let (raw_id, raw_path) = &raws[0];
+    eprintln!("raw: {} ({} raw files total)", raw_path, raws.len());
+
+    // 编辑会写同名 XMP sidecar（产品行为）；测试结束后若原不存在则还原
+    let sidecar_path = desktop_lib::xmp::sidecar_path_for(std::path::Path::new(raw_path));
+    let sidecar_pre_existing = sidecar_path.exists();
+
+    // 1) 无调色预览（内嵌 JPEG 快路径）
+    let t0 = Instant::now();
+    let plain = desktop_lib::commands::get_viewer_preview_inner(&state, *raw_id, false).unwrap();
+    assert!(plain.is_some(), "plain preview");
+    eprintln!("plain preview: {:.2}s -> {:?}", t0.elapsed().as_secs_f32(), plain);
+
+    // 2) 写入调色参数（覆盖基础/曲线/HSL/裁剪）
+    let adj = desktop_lib::develop::Adjustments {
+        exposure: 0.45,
+        contrast: 12.0,
+        highlights: -35.0,
+        shadows: 25.0,
+        temperature: 8.0,
+        tint: -4.0,
+        saturation: 10.0,
+        crop: [0.05, 0.05, 0.92, 0.9],
+        rotation: 0,
+        curve: vec![[0.0, 0.0], [0.25, 0.22], [0.5, 0.55], [0.75, 0.8], [1.0, 1.0]],
+        hsl_sat: {
+            let mut a = [0.0f32; 8];
+            a[5] = 18.0; // 蓝
+            a[2] = -10.0; // 黄
+            a
+        },
+        hsl_lum: {
+            let mut a = [0.0f32; 8];
+            a[0] = 12.0; // 红
+            a
+        },
+    };
+    desktop_lib::commands::set_edit_inner(&state, *raw_id, &adj).unwrap();
+
+    // 3) 调色预览：真实 RAW 显影 + 全部调整（本次含裁剪）
+    let t0 = Instant::now();
+    let edited = desktop_lib::commands::get_viewer_preview_inner(&state, *raw_id, false)
+        .unwrap()
+        .expect("edit preview");
+    eprintln!(
+        "edit preview (raw develop + adjustments): {:.2}s -> {}",
+        t0.elapsed().as_secs_f32(),
+        edited
+    );
+    let edited_img = image::open(&edited).unwrap();
+    eprintln!("edit preview dims: {}x{}", edited_img.width(), edited_img.height());
+
+    // 4) 调色预览（ignore-crop 变体，裁剪 UI 用）
+    let t0 = Instant::now();
+    let nocrop = desktop_lib::commands::get_viewer_preview_inner(&state, *raw_id, true)
+        .unwrap()
+        .expect("uncropped edit preview");
+    let nocrop_img = image::open(&nocrop).unwrap();
+    let cropped_ratio = edited_img.width() as f64 / edited_img.height() as f64;
+    let nocrop_ratio = nocrop_img.width() as f64 / nocrop_img.height() as f64;
+    assert!(
+        (nocrop_ratio - cropped_ratio).abs() > 0.01,
+        "uncropped variant has different aspect: {nocrop_ratio:.3} vs {cropped_ratio:.3}"
+    );
+    eprintln!(
+        "uncropped edit preview: {:.2}s -> {}x{} (ratio {:.3} vs cropped {:.3})",
+        t0.elapsed().as_secs_f32(),
+        nocrop_img.width(),
+        nocrop_img.height(),
+        nocrop_ratio,
+        cropped_ratio
+    );
+
+    // 4b) 交互路径：RAW 基底已缓存，改一个滑杆后的重渲染应远快于首次显影
+    let t0 = Instant::now();
+    let adj2 = desktop_lib::develop::Adjustments {
+        exposure: 0.8,
+        ..adj.clone()
+    };
+    desktop_lib::commands::set_edit_inner(&state, *raw_id, &adj2).unwrap();
+    let _ = desktop_lib::commands::get_viewer_preview_inner(&state, *raw_id, false)
+        .unwrap()
+        .expect("re-render after slider");
+    eprintln!(
+        "slider re-render (cached raw base): {:.2}s",
+        t0.elapsed().as_secs_f32()
+    );
+
+    // 5) 导出：JPEG（限长边）+ TIFF（全分辨率，应用裁剪）
+    let jpeg_dir = out_dir.join("jpeg");
+    let req = desktop_lib::models::ExportRequest {
+        photo_ids: vec![*raw_id],
+        target_dir: jpeg_dir.to_string_lossy().into_owned(),
+        format: "jpeg".into(),
+        quality: 92,
+        max_dimension: Some(2048),
+        filename_suffix: "_edit".into(),
+        watermark: Some("Shutter Hub".into()),
+    };
+    let t0 = Instant::now();
+    let result = desktop_lib::commands::export_photos_inner(&state, &req, |_| {}).unwrap();
+    assert_eq!(result.exported, 1, "failed: {:?}", result.failed);
+    eprintln!("export jpeg: {:.2}s", t0.elapsed().as_secs_f32());
+
+    let jpeg_path = std::fs::read_dir(&jpeg_dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .next()
+        .unwrap();
+    let jpeg_img = image::open(&jpeg_path).unwrap();
+    eprintln!(
+        "jpeg: {} {}x{} ({:.1}MB)",
+        jpeg_path.display(),
+        jpeg_img.width(),
+        jpeg_img.height(),
+        std::fs::metadata(&jpeg_path).unwrap().len() as f64 / 1e6
+    );
+
+    let tiff_dir = out_dir.join("tiff");
+    let req_tiff = desktop_lib::models::ExportRequest {
+        photo_ids: vec![*raw_id],
+        target_dir: tiff_dir.to_string_lossy().into_owned(),
+        format: "tiff".into(),
+        quality: 95,
+        max_dimension: None,
+        filename_suffix: "".into(),
+        watermark: None,
+    };
+    let t0 = Instant::now();
+    let result = desktop_lib::commands::export_photos_inner(&state, &req_tiff, |_| {}).unwrap();
+    assert_eq!(result.exported, 1, "failed: {:?}", result.failed);
+    eprintln!("export tiff: {:.2}s", t0.elapsed().as_secs_f32());
+    let tiff_path = std::fs::read_dir(&tiff_dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .next()
+        .unwrap();
+    let tiff_img = image::open(&tiff_path).unwrap();
+    // 裁剪后的 TIFF 尺寸应等于全分辨率裁剪结果（与预览同比例）
+    eprintln!(
+        "tiff: {} {}x{} ({:.1}MB)",
+        tiff_path.display(),
+        tiff_img.width(),
+        tiff_img.height(),
+        std::fs::metadata(&tiff_path).unwrap().len() as f64 / 1e6
+    );
+    let expect_ratio = ((adj.crop[3] - adj.crop[1]) / (adj.crop[2] - adj.crop[0])) as f64 * nocrop_ratio;
+    let got_ratio = tiff_img.width() as f64 / tiff_img.height() as f64;
+    assert!(
+        (expect_ratio - got_ratio).abs() < 0.05,
+        "crop ratio preserved: expect {expect_ratio:.3}, got {got_ratio:.3}"
+    );
+
+    // 6) 分享卡（应用调色 + 拍立得样式）
+    let card_dir = out_dir.join("card");
+    let req_card = desktop_lib::models::ShareCardRequest {
+        photo_ids: vec![*raw_id],
+        aspect: "4:5".into(),
+        background: "#f5f0e8".into(),
+        text_color: "#1e1e1e".into(),
+        show_info: true,
+        watermark: "Shutter Hub".into(),
+        target_dir: card_dir.to_string_lossy().into_owned(),
+        title: "RAW 测试".into(),
+        caption: "Sony ARW · 全流程本地显影".into(),
+        polaroid: false,
+    };
+    let t0 = Instant::now();
+    let result = desktop_lib::commands::render_share_cards_inner(&state, &req_card).unwrap();
+    assert_eq!(result.paths.len(), 1, "failed: {:?}", result.failed);
+    eprintln!("share card: {:.2}s -> {}", t0.elapsed().as_secs_f32(), result.paths[0]);
+
+    // 7) 重置调色 → 预览回落到快路径
+    desktop_lib::commands::set_edit_inner(&state, *raw_id, &Default::default()).unwrap();
+    let plain2 = desktop_lib::commands::get_viewer_preview_inner(&state, *raw_id, false)
+        .unwrap()
+        .unwrap();
+    assert!(!plain2.contains("_edit_"), "reset falls back to plain: {plain2}");
+
+    // 还原用户目录：测试前不存在 sidecar 则删除（编辑默认会留下 XMP，这是产品行为）
+    if !sidecar_pre_existing {
+        std::fs::remove_file(&sidecar_path).ok();
+        eprintln!("cleaned up test sidecar: {}", sidecar_path.display());
+    }
+
+    eprintln!("ALL OK — outputs in {}", out_dir.display());
+    std::fs::remove_dir_all(&base).ok();
+}
+
 fn touch(path: &Path) {
     let bytes = std::fs::read(path).unwrap();
     std::thread::sleep(std::time::Duration::from_millis(5));
