@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { thumbUrl } from "../lib/api";
 import { useT } from "../lib/i18n";
@@ -47,6 +47,15 @@ export function ShareCardDialog() {
     () => localStorage.getItem(LAST_DIR_KEY) ?? "",
   );
   const [picking, setPicking] = useState(false);
+
+  // Esc 关闭（生成中除外）
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !shareBusy) closeShare();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [shareBusy, closeShare]);
 
   const selected = shareIds
     .map((id) => photos.find((p) => p.id === id))
@@ -161,7 +170,7 @@ export function ShareCardDialog() {
               )}
               <button
                 className="btn"
-                onClick={() => void revealItemInDir(shareResult.paths[0] ?? targetDir)}
+                onClick={() => void revealItemInDir(shareResult.paths[0] ?? targetDir).catch(() => {})}
               >
                 {t("export.openFolder")}
               </button>

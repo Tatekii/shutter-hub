@@ -43,7 +43,8 @@ export function HeaderBar({ onShowHelp }: { onShowHelp: () => void }) {
 
   return (
     <>
-      <header className="app-header">
+      <div className="app-header-wrap">
+        <header className="app-header">
         <div className="app-title">
           <span className="app-logo">◉</span>
           <span>Shutter Hub</span>
@@ -138,9 +139,10 @@ export function HeaderBar({ onShowHelp }: { onShowHelp: () => void }) {
         <div className="app-stats">
           {t("header.stats", { n: stats.photoCount, m: stats.folderCount })}
         </div>
-      </header>
-      {filterOpen && <FilterPanel onClose={() => setFilterOpen(false)} />}
-      {aiOpen && <AiPanel onClose={() => setAiOpen(false)} />}
+        </header>
+        {filterOpen && <FilterPanel onClose={() => setFilterOpen(false)} />}
+        {aiOpen && <AiPanel onClose={() => setAiOpen(false)} />}
+      </div>
     </>
   );
 }

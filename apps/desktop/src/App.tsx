@@ -113,6 +113,8 @@ function App() {
     const s = useApp.getState();
     // 看图模式打开时按键全部交给 Viewer 处理
     if (s.viewerId != null) return;
+    // 对话框打开时按键交给对话框（各自处理 Esc 关闭），避免误触全局快捷键
+    if (s.exportOpen || s.collageOpen || s.shareOpen) return;
     if (e.key === "?") {
       setShowHelp((v) => !v);
       return;
@@ -233,40 +235,39 @@ function App() {
               </button>
             </div>
           )}
+          {volumes.length > 0 && !cardVolume && (
+            <div className="volume-banner">
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowVolumePicker(!showVolumePicker)}
+              >
+                {t("app.volumeDetected", { n: volumes.length })}
+              </button>
+              {showVolumePicker && (
+                <div className="volume-picker">
+                  {volumes.map((v) => (
+                    <button
+                      key={v.path}
+                      className="volume-item"
+                      onClick={() => {
+                        setShowVolumePicker(false);
+                        void openVolume(v);
+                      }}
+                    >
+                      <span className="volume-name">{v.name}</span>
+                      <span className="volume-path">{v.path}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {mainContent()}
         </main>
         <Inspector />
       </div>
 
       <SelectionBar />
-
-      {volumes.length > 0 && !cardVolume && (
-        <div className="volume-banner">
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowVolumePicker(!showVolumePicker)}
-          >
-            {t("app.volumeDetected", { n: volumes.length })}
-          </button>
-          {showVolumePicker && (
-            <div className="volume-picker">
-              {volumes.map((v) => (
-                <button
-                  key={v.path}
-                  className="volume-item"
-                  onClick={() => {
-                    setShowVolumePicker(false);
-                    void openVolume(v);
-                  }}
-                >
-                  <span className="volume-name">{v.name}</span>
-                  <span className="volume-path">{v.path}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {scanning && (
         <footer className="app-footer">

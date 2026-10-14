@@ -41,6 +41,13 @@ body {
   height: 100%;
 }
 
+/* 头部 + 下拉面板（筛选/AI）：面板以头部高度为锚 */
+.app-header-wrap {
+  position: relative;
+  flex: none;
+  z-index: 20;
+}
+
 /* ---------- header ---------- */
 
 .app-header {
@@ -255,7 +262,8 @@ body {
   align-items: center;
 }
 
-.sidebar-item:hover .sidebar-item-actions {
+.sidebar-item:hover .sidebar-item-actions,
+.sidebar-item:focus-within .sidebar-item-actions {
   display: inline-flex;
 }
 

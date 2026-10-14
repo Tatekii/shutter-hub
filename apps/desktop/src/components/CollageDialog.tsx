@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { thumbUrl } from "../lib/api";
 import { useT } from "../lib/i18n";
@@ -36,6 +36,15 @@ export function CollageDialog() {
     () => localStorage.getItem(LAST_DIR_KEY) ?? "",
   );
   const [picking, setPicking] = useState(false);
+
+  // Esc 关闭（渲染中除外）
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !collageBusy) closeCollage();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [collageBusy, closeCollage]);
 
   const selected = collageIds
     .map((id) => photos.find((p) => p.id === id))
@@ -122,7 +131,7 @@ export function CollageDialog() {
             <div className="export-actions">
               <button
                 className="btn"
-                onClick={() => void revealItemInDir(collageResult.path)}
+                onClick={() => void revealItemInDir(collageResult.path).catch(() => {})}
               >
                 {t("export.openFolder")}
               </button>

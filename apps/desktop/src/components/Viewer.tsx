@@ -1,4 +1,3 @@
-import { convertFileSrc } from "@tauri-apps/api/core";
 import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
@@ -10,6 +9,7 @@ import {
   getViewerPreview,
   listFaces,
   setEdit,
+  toAssetUrl,
 } from "../lib/api";
 import { useT } from "../lib/i18n";
 import { useApp } from "../lib/store";
@@ -84,7 +84,7 @@ export function Viewer() {
     void getViewerPreview(photo.id, cropMode)
       .then((path) => {
         if (cancelled) return;
-        if (path) setUrl(convertFileSrc(path));
+        if (path) setUrl(toAssetUrl(path));
         else setFailed(true);
       })
       .catch(() => {
@@ -95,7 +95,7 @@ export function Viewer() {
     };
   }, [photo?.id, reloadKey, developOpen, developTab]);
 
-  // 载入当前照片的调色参数
+  // 载入当前照片的调色参数（失败时回退为默认值，面板仍可打开预览布局）
   useEffect(() => {
     if (!photo || photo.mediaType === "video") {
       setEditAdj(null);
@@ -107,7 +107,22 @@ export function Viewer() {
         if (!cancelled) setEditAdj(adj);
       })
       .catch(() => {
-        if (!cancelled) setEditAdj(null);
+        if (!cancelled) {
+          setEditAdj({
+            exposure: 0,
+            contrast: 0,
+            highlights: 0,
+            shadows: 0,
+            temperature: 0,
+            tint: 0,
+            saturation: 0,
+            crop: [0, 0, 1, 1],
+            rotation: 0,
+            curve: [],
+            hslSat: [0, 0, 0, 0, 0, 0, 0, 0],
+            hslLum: [0, 0, 0, 0, 0, 0, 0, 0],
+          });
+        }
       });
     return () => {
       cancelled = true;
@@ -170,13 +185,22 @@ export function Viewer() {
     };
   }, [photo?.id]);
 
-  // 测量图片在画布中的实际显示矩形（人脸框定位用）
+  // 测量图片在画布中的实际显示矩形（人脸框 / 裁剪取景框定位用）
   useLayoutEffect(() => {
     const img = imgRef.current;
     const canvasEl = canvasRef.current;
     if (!img || !canvasEl) {
       setImgRect(null);
       return;
+    }
+    // 兜底：缓存 / data URL 可能在 React 挂载 onLoad 前就已完成加载，
+    // 此时 load 事件已错过，直接用 naturalWidth 补齐
+    if (
+      img.complete &&
+      img.naturalWidth > 0 &&
+      (!natural || natural.w !== img.naturalWidth || natural.h !== img.naturalHeight)
+    ) {
+      setNatural({ w: img.naturalWidth, h: img.naturalHeight });
     }
     const rect = img.getBoundingClientRect();
     const base = canvasEl.getBoundingClientRect();
@@ -339,7 +363,7 @@ export function Viewer() {
           <div className="viewer-video">
             <div className="viewer-video-icon">▶</div>
             <div className="viewer-status">{t("viewer.videoHint")}</div>
-            <button className="btn btn-primary" onClick={() => void openPath(photo.path)}>
+            <button className="btn btn-primary" onClick={() => void openPath(photo.path).catch(() => {})}>
               {t("viewer.play")}
             </button>
           </div>
@@ -415,8 +439,9 @@ export function Viewer() {
               const w = rotated ? natural.h : natural.w;
               const h = rotated ? natural.w : natural.h;
               const ar = w / h;
-              const cw = a >= ar ? a / ar : 1;
-              const ch = a >= ar ? 1 : ar / a;
+              // 目标比例 a 与图像像素比 ar：a ≤ ar 时以高度为准，否则以宽度为准
+              const cw = a <= ar ? a / ar : 1;
+              const ch = a <= ar ? 1 : ar / a;
               const crop: [number, number, number, number] = [
                 round4((1 - ch) / 2),
                 round4((1 - cw) / 2),
@@ -482,7 +507,7 @@ export function Viewer() {
             <button
               className="btn"
               title={photo.liveMotion}
-              onClick={() => void openPath(photo.liveMotion!)}
+              onClick={() => void openPath(photo.liveMotion!).catch(() => {})}
             >
               ⚡ {t("viewer.playLive")}
             </button>

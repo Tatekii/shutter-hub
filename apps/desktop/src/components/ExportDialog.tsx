@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { formatBytes } from "../lib/api";
 import { useT } from "../lib/i18n";
@@ -47,6 +47,17 @@ export function ExportDialog() {
   );
   const [picking, setPicking] = useState(false);
 
+  const running = exportProgress != null;
+
+  // Esc 关闭（导出中除外）
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !running) closeExport();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [running, closeExport]);
+
   const pickFolder = async () => {
     setPicking(true);
     try {
@@ -67,7 +78,6 @@ export function ExportDialog() {
     setMaxDimension(preset.maxDimension);
   };
 
-  const running = exportProgress != null;
   const activePreset = PRESETS.find(
     (p) =>
       p.format === format && p.quality === quality && p.maxDimension === maxDimension,
@@ -107,7 +117,7 @@ export function ExportDialog() {
             <div className="export-actions">
               <button
                 className="btn"
-                onClick={() => void revealItemInDir(exportResult.targetDir)}
+                onClick={() => void revealItemInDir(exportResult.targetDir).catch(() => {})}
               >
                 {t("export.openFolder")}
               </button>

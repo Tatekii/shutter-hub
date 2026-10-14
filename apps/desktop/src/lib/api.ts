@@ -41,8 +41,22 @@ export const listFolders = () => invoke<FolderDto[]>("list_folders");
 export const listPhotos = (query: PhotoQuery) =>
   invoke<PhotoDto[]>("list_photos", { query });
 export const getPhoto = (id: number) => invoke<PhotoDto>("get_photo", { id });
-export const getViewerPreview = (id: number, ignoreCrop?: boolean) =>
-  invoke<string | null>("get_viewer_preview", { id, ignoreCrop });
+export const getViewerPreview = async (id: number, ignoreCrop?: boolean) => {
+  // 开发模式：允许注入预览路径（UI 探测 / 无 Tauri 环境调试）
+  const override = import.meta.env.DEV ? __devPreviewOverrides.get(id) : undefined;
+  if (override) return override;
+  return invoke<string | null>("get_viewer_preview", { id, ignoreCrop });
+};
+
+/// dev-only：把 photo id 的预览指向任意可加载 URL（data:/http:）
+export const __devPreviewOverrides = new Map<number, string>();
+
+// 开发模式：暴露给 UI 探测脚本（生产构建走不到这里）
+if (import.meta.env.DEV && typeof window !== "undefined") {
+  (window as unknown as Record<string, unknown>).__shutterDev = {
+    previewOverrides: __devPreviewOverrides,
+  };
+}
 export const getStats = () => invoke<LibraryStats>("get_stats");
 export const listFacets = () => invoke<FacetDto>("list_facets");
 
@@ -104,7 +118,15 @@ export const exportLiveMotion = (photoId: number, targetDir: string, format: "gi
   invoke<string>("export_live_motion", { photoId, targetDir, format });
 
 export const thumbUrl = (thumbPath: string | null) =>
-  thumbPath ? convertFileSrc(thumbPath) : null;
+  thumbPath ? toAssetUrl(thumbPath) : null;
+
+/// 转换为可加载的 URL。dev 下 http(s)/data: 直接透传（供 UI 探测注入测试图）。
+export function toAssetUrl(path: string): string {
+  if (import.meta.env.DEV && /^(https?:|data:)/.test(path)) {
+    return path;
+  }
+  return convertFileSrc(path);
+}
 
 export function listenEvent<T>(
   name: string,

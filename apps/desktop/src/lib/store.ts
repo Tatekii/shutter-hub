@@ -652,3 +652,8 @@ export const useApp = create<AppState>((set, get) => ({
   setHashing: (h) => set({ hashing: h }),
   setIngestProgress: (p) => set({ ingestProgress: p }),
 }));
+
+// 开发模式：暴露 store 供端到端 UI 探测与调试（生产构建会被 tree-shake 消除）
+if (import.meta.env.DEV && typeof window !== "undefined") {
+  (window as unknown as Record<string, unknown>).__shutterStore = useApp;
+}
