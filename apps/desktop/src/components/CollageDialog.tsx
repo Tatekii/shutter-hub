@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { thumbUrl } from "../lib/api";
 import { useT } from "../lib/i18n";
+import { useFocusTrap } from "../lib/useFocusTrap";
 import { useApp } from "../lib/store";
 
 type LayoutKind = "grid" | "strip" | "featured" | "vertical";
@@ -18,6 +19,8 @@ const PREVIEW_W = 320;
 
 export function CollageDialog() {
   const t = useT();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef);
   const collageIds = useApp((s) => s.collageIds);
   const closeCollage = useApp((s) => s.closeCollage);
   const runCollage = useApp((s) => s.runCollage);
@@ -107,6 +110,8 @@ export function CollageDialog() {
   return (
     <div className="export-overlay" onClick={collageBusy ? undefined : closeCollage}>
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="export-dialog collage-dialog"
         role="dialog"
         aria-modal="true"

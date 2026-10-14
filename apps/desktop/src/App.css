@@ -732,11 +732,19 @@ body {
   padding: 8px 14px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   z-index: 30;
+  max-width: calc(100vw - 40px);
 }
 
 .selection-count {
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
+  flex: none;
+}
+
+/* 长相册名不能撑爆选择栏（原生 select 会撑到最长 option 的宽度） */
+.selection-bar select {
+  max-width: 170px;
 }
 
 .selection-bar select,

@@ -1,7 +1,11 @@
+import { useRef } from "react";
 import { useT } from "../lib/i18n";
+import { useFocusTrap } from "../lib/useFocusTrap";
 
 export function HelpOverlay({ onClose }: { onClose: () => void }) {
   const t = useT();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef);
   const shortcuts: Array<[string, string]> = [
     ["← / →", t("help.prevNext")],
     ["双击 / Enter", t("help.openViewer")],
@@ -24,6 +28,8 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
   return (
     <div className="help-overlay" onClick={onClose}>
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="help-dialog"
         role="dialog"
         aria-modal="true"

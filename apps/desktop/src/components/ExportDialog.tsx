@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { formatBytes } from "../lib/api";
 import { useT } from "../lib/i18n";
+import { useFocusTrap } from "../lib/useFocusTrap";
 import { useApp } from "../lib/store";
 
 type Preset = {
@@ -31,6 +32,8 @@ const LAST_DIR_KEY = "shutter_hub.exportDir";
 
 export function ExportDialog() {
   const t = useT();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef);
   const exportIds = useApp((s) => s.exportIds);
   const closeExport = useApp((s) => s.closeExport);
   const runExport = useApp((s) => s.runExport);
@@ -86,6 +89,8 @@ export function ExportDialog() {
   return (
     <div className="export-overlay" onClick={running ? undefined : closeExport}>
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="export-dialog"
         role="dialog"
         aria-modal="true"

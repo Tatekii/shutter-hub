@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { thumbUrl } from "../lib/api";
 import { useT } from "../lib/i18n";
+import { useFocusTrap } from "../lib/useFocusTrap";
 import { useApp } from "../lib/store";
 
 type Aspect = "1:1" | "4:5" | "3:4";
@@ -28,6 +29,8 @@ function textColorFor(background: string): string {
 
 export function ShareCardDialog() {
   const t = useT();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef);
   const shareIds = useApp((s) => s.shareIds);
   const closeShare = useApp((s) => s.closeShare);
   const runShare = useApp((s) => s.runShare);
@@ -128,6 +131,8 @@ export function ShareCardDialog() {
   return (
     <div className="export-overlay" onClick={shareBusy ? undefined : closeShare}>
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="export-dialog collage-dialog"
         role="dialog"
         aria-modal="true"
